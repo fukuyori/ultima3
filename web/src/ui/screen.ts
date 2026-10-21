@@ -80,6 +80,7 @@ import {
   wrapText,
 } from './menus.ts';
 import { DungeonCell } from '../game/world.ts';
+import { availableLanguages, getLanguage, setLanguage, translate } from '../i18n.ts';
 
 export const COLUMNS = 40;
 export const ROWS = 24;
@@ -487,6 +488,7 @@ export class Screen implements GameIO {
 
   /** Draw a string with the bitmap font at cell (x, y), no wrapping. */
   drawText(text: string, x: number, y: number, colour?: string): void {
+    text = translate(text);
     const { ctx, cell } = this;
     if (this.overlayShown && y >= MAP_OVERLAY_TOP && y < MAP_OVERLAY_TOP + MAP_OVERLAY_SIZE && x + text.length > MAP_OVERLAY_LEFT) {
       // Only the part left of the overlay is drawn; the overlay repaints itself.
@@ -497,7 +499,18 @@ export class Screen implements GameIO {
     for (let i = 0; i < text.length; i++) {
       ctx.fillStyle = '#000';
       ctx.fillRect((x + i) * cell, y * cell, cell, cell);
-      this.gfx.drawGlyph(ctx, text[i], (x + i) * cell, y * cell, cell);
+      const ch = text[i];
+      if (ch.charCodeAt(0) > 0x7f) {
+        // The classic sheet has ASCII glyphs only; use the platform's CJK font for locale text.
+        ctx.save();
+        ctx.fillStyle = '#fff';
+        ctx.font = `${cell}px sans-serif`;
+        ctx.textBaseline = 'top';
+        ctx.fillText(ch, (x + i) * cell, y * cell, cell);
+        ctx.restore();
+      } else {
+        this.gfx.drawGlyph(ctx, ch, (x + i) * cell, y * cell, cell);
+      }
     }
     if (colour) {
       // Tint the white glyphs: multiplying leaves the black background black.
@@ -515,6 +528,7 @@ export class Screen implements GameIO {
   }
 
   centreText(y: number, text: string): void {
+    text = translate(text);
     this.textAt(20 - Math.floor(text.length / 2), y, text);
   }
 
@@ -542,6 +556,7 @@ export class Screen implements GameIO {
   }
 
   print(text: string): void {
+    text = translate(text);
     for (const ch of text) {
       if (ch === '\n') {
         if (!this.foldRepeat()) this.newline();
@@ -854,6 +869,7 @@ export class Screen implements GameIO {
         { key: 'V', label: 'Visuals' },
         { key: 'P', label: 'Gameplay' },
         { key: 'U', label: 'Audio' },
+        { key: 'L', label: `Language: ${availableLanguages().find(({ code }) => code === getLanguage())?.name ?? getLanguage()}` },
         { key: 'G', label: 'Tips' },
         { key: 'H', label: 'Help' },
         ...cheats,
@@ -884,6 +900,9 @@ export class Screen implements GameIO {
         case 'G':
           await this.showTips();
           break;
+        case 'L':
+          await this.chooseLanguage();
+          break;
         case 'H':
           await this.showHelp();
           break;
@@ -901,6 +920,20 @@ export class Screen implements GameIO {
         default:
           return null;
       }
+      this.onSettingsChange?.();
+    }
+  }
+
+  private async chooseLanguage(): Promise<void> {
+    const builtIn = [
+      { code: 'en', name: 'English' },
+      { code: 'ja', name: 'Japanese' },
+    ];
+    const configured = availableLanguages().filter(({ code }) => !builtIn.some((entry) => entry.code === code));
+    const options = [...builtIn, ...configured].map(({ code, name }) => ({ key: code, label: name }));
+    const picked = await this.chooseFromList(options, { row: 10, title: 'Language' });
+    if (options.some(({ key }) => key === picked)) {
+      setLanguage(picked);
       this.onSettingsChange?.();
     }
   }
@@ -1231,7 +1264,7 @@ export class Screen implements GameIO {
       for (;;) {
         this.drawPage(
           'Tips',
-          TIPS.map((t) => t.topic),
+          TIPS.map((t) => translate(t.topic)),
           [],
           '',
           selected,
@@ -1254,9 +1287,13 @@ export class Screen implements GameIO {
    * Escape closed Tips altogether.
    */
   private async readTip(tip: Tip): Promise<boolean> {
-    const pages = tipPages(tip, PAGE_WIDTH, PAGE_ROWS, wrapText);
+    const localized: Tip = {
+      topic: translate(tip.topic),
+      text: tip.text.map(translate),
+    };
+    const pages = tipPages(localized, PAGE_WIDTH, PAGE_ROWS, wrapText);
     for (let index = 0; index < pages.length; ) {
-      this.drawPage(tip.topic, pages[index], []);
+      this.drawPage(localized.topic, pages[index], []);
       const key = await this.readKey();
       if (key === null) continue;
       if (key === Key.Escape) return false;

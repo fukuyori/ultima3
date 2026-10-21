@@ -39,11 +39,13 @@ import { bootHold } from './ui/bootHold.ts';
 import { MusicPlayer } from './ui/music.ts';
 import { Screen } from './ui/screen.ts';
 import { TILE_SETS } from './ui/help.ts';
+import { getLanguage, isLanguage, loadLanguages, setLanguage, type Language } from './i18n.ts';
 
 const PREFS_KEY = 'ultima3.settings';
 
 /** What the Settings menu can change, as remembered between visits. */
 interface Prefs {
+  language: Language;
   inputMode: 'keyboard' | 'controller';
   tiles: string;
   /** CRT lines over the whole game (scanlines.ts); off unless asked for. */
@@ -67,6 +69,7 @@ interface Prefs {
 }
 
 const DEFAULT_PREFS: Prefs = {
+  language: 'en',
   inputMode: 'controller',
   tiles: 'Standard',
   scanlines: false,
@@ -89,6 +92,7 @@ function loadPrefs(): Prefs {
     const raw = localStorage.getItem(PREFS_KEY);
     const saved = raw ? (JSON.parse(raw) as Partial<Prefs>) : {};
     const prefs = { ...DEFAULT_PREFS, ...saved };
+    if (!isLanguage(prefs.language)) prefs.language = DEFAULT_PREFS.language;
     // Apple II Color TV was dropped when scanlines became a setting; Apple II Color is its art without the fringing.
     if (prefs.tiles === 'Apple II Color TV') prefs.tiles = 'Apple II Color';
     if (!TILE_SETS.includes(prefs.tiles)) prefs.tiles = DEFAULT_PREFS.tiles;
@@ -202,7 +206,9 @@ async function start(): Promise<void> {
   const holdBootScreen = bootHold();
   const canvas = document.getElementById('screen') as HTMLCanvasElement;
   const params = new URLSearchParams(location.search);
+  await loadLanguages();
   const prefs = loadPrefs();
+  setLanguage(prefs.language);
   // Development starts (devStarts.ts, `npm run dev` only): ?peek saves nothing, ?tiles= is a set for this page alone.
   const dev = import.meta.env.DEV ? await import('./game/devStarts.ts') : null;
   const peek = dev !== null && params.has('peek');
@@ -272,6 +278,7 @@ async function start(): Promise<void> {
     if (peek) return;
     savePrefs({
       inputMode: screen.inputMode,
+      language: getLanguage(),
       // A set asked for in the address (development) is this page's alone: the one remembered stays.
       tiles: screen.tileSetName === tilesAsked ? prefs.tiles : screen.tileSetName,
       scanlines: screen.scanlines,

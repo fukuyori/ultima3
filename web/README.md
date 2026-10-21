@@ -30,6 +30,16 @@ resources change.
 Its output is committed so the game runs straight after `npm install`.
 `?new` on the URL starts a fresh game instead of resuming the last one.
 
+### Languages
+
+The language setting is saved with the other local preferences. Locale catalogs
+live in `public/locales/`: `index.json` lists the locale codes, and each code
+has a JSON file with a display `name` and a `messages` object. Message keys are
+the English text shown by the game; untranslated keys fall back to English.
+Add a locale by adding its code to the index and its catalog file. The canvas
+uses its bitmap font for the original ASCII text and the platform font for
+Japanese characters.
+
 ### Development starts
 
 Under `npm run dev` the address bar can put the game somewhere, so
