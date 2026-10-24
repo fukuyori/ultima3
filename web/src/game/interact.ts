@@ -15,7 +15,7 @@ import type { PlayerRecord } from './player.ts';
 import { Location } from './party.ts';
 import { MapValue, Shape } from './tiles.ts';
 import { type GameIO, Sound, Music, deathSound, letterOptions } from './io.ts';
-import { getDirection, notHere, what2, cancelled, counterWithMerchant, Msg as CmdMsg, PartyShape } from './commands.ts';
+import { getDirection, notHere, what2, cancelled, counterWithMerchant, chestBehindCounter, Msg as CmdMsg, PartyShape } from './commands.ts';
 import { getChest, incapacitated, stealDisarmFails } from './actions.ts';
 import { shop } from './shops.ts';
 import { attackMonster, monsterName } from './combat.ts';
@@ -294,12 +294,11 @@ export async function steal(world: World, io: GameIO): Promise<void> {
   };
 
   if (stealDisarmFails(world, world.member(member))) return fail();
-  const counter = world.getXYVal(dir.xs, dir.ys);
-  if (counter < 0x94 || counter > 0xe4) return fail();
-  const xs = world.constrain(dir.xs + dir.dx);
-  const ys = world.constrain(dir.ys + dir.dy);
-  if (world.getXYVal(xs, ys) !== MapValue.Chest) return fail();
-  world.putXYVal(MapValue.Floor, xs, ys);
+  // The chest behind the merchant, two squares past the counter. (The port had looked one past, where the merchant
+  // stands, so a theft failed at every counter but one.)
+  const chest = chestBehindCounter(world, dir.xs, dir.ys, dir.dx, dir.dy);
+  if (!chest) return fail();
+  world.putXYVal(MapValue.Floor, chest.x, chest.y);
   await getChest(world, io, member, 'steal');
 }
 

@@ -189,14 +189,27 @@ describe('doors, chests and stealing', () => {
     expect(io.output).toContain('GOLD+');
   });
 
-  it('a thief can steal the chest behind a counter', async () => {
+  it('a thief can steal the chest behind the merchant, two squares past the counter', async () => {
     const { world, io } = townWorld();
     world.member(0).bytes[19] = 99; // a dexterous thief never fails
-    world.putXYVal(MapValue.LetterA, 21, 20);
-    world.putXYVal(MapValue.Chest, 22, 20);
+    world.putXYVal(MapValue.LetterA, 21, 20); // the counter; the merchant's row at 22; the chest at 23
+    world.putXYVal(MapValue.Chest, 23, 20);
     io.keys = ['1', Key.Right];
     await steal(world, io);
-    expect(world.getXYVal(22, 20)).toBe(MapValue.Floor);
+    expect(world.getXYVal(23, 20)).toBe(MapValue.Floor);
+    expect(io.output).toContain('GOLD+');
+  });
+
+  it("steals at the game's own shop counters, as LairWare's Steal did", async () => {
+    const { world, io } = townWorld(); // Britain: the shop counter south of the chests at (36, 16)
+    world.enterMap(MapId.FirstTown);
+    world.monsters.bytes.fill(0);
+    world.x = 36;
+    world.y = 19;
+    world.member(0).bytes[19] = 99;
+    io.keys = ['1', Key.Up];
+    await steal(world, io);
+    expect(world.getXYVal(36, 16)).toBe(MapValue.Floor);
     expect(io.output).toContain('GOLD+');
   });
 });

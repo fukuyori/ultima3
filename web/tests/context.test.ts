@@ -130,6 +130,42 @@ describe('command menu availability', () => {
     expect(again[0].key).toBe('B'); // and first, as the surroundings call for it
   });
 
+  it('offers Steal at a shop counter with a chest behind the merchant, and only there', () => {
+    const world = newWorld();
+    world.enterMap(MapId.FirstTown);
+    world.party.location = Location.Town;
+    world.monsters.bytes.fill(0);
+    const steal = () => commandMenu(world, 'field', COMMAND_MENUS.field).some((o) => o.key === 'S');
+    world.x = 36; // Britain's shop: the counter north of here, the chest at (36, 16) behind the merchant's row
+    world.y = 19;
+    expect(steal()).toBe(true);
+    world.x = 37; // a step along the counter: no chest behind it there
+    expect(steal()).toBe(false);
+  });
+
+  it("offers Enter only where the place stands: not on Dawn's square while it is forest", () => {
+    const world = newWorld();
+    world.monsters.bytes.fill(0);
+    const { locationX, locationY } = world.resources.misc;
+    [world.x, world.y] = [locationX[8], locationY[8]]; // Dawn
+    const enter = () => commandMenu(world, 'field', COMMAND_MENUS.field).some((o) => o.key === 'E');
+    world.putXYVal(MapValue.Forest, world.x, world.y);
+    expect(enter()).toBe(false);
+    world.putXYVal(MapValue.Town, world.x, world.y); // both moons new
+    expect(enter()).toBe(true);
+  });
+
+  it('offers X-it only where the mount can be left: a horse on grass, a ship on water', () => {
+    const world = newWorld();
+    world.monsters.bytes.fill(0);
+    const xit = () => commandMenu(world, 'field', COMMAND_MENUS.field).some((o) => o.key === 'X');
+    world.party.shape = PartyShape.Horse;
+    world.putXYVal(MapValue.Brush, world.x, world.y);
+    expect(xit()).toBe(false);
+    world.putXYVal(MapValue.Grass, world.x, world.y);
+    expect(xit()).toBe(true);
+  });
+
   it("offers Unlock first beside one of Ambrosia's doors, greyed without a key", () => {
     const world = newWorld();
     world.enterMap(MapId.Ambrosia);
