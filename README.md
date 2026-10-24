@@ -608,6 +608,31 @@ Every release, with the desktop and Android downloads, is on the
 web version is updated with each release, so it runs the same game as the
 apps.
 
+### v1.0.65, October 24, 2026
+
+- The game draws only when something moves or changes, which saves power,
+  most of all on phones and handhelds. A new Battery saver, under
+  Gameplay and off by default, lets the map rest a minute after the last
+  press. The Android app holds the game while it is in the background.
+- "Who?" prompts start on the member the command most likely wants: the
+  nimblest for a chest or a theft, the most hurt for a heal, the
+  poisoned, dead or ashes for a cure, resurrection or recall, the caster
+  with the most mana for Cast, and for a rod someone without its mark
+  who can bear its burn. Any member can still be chosen.
+- A fight left alone for a minute, its turns passing by themselves,
+  pauses until the player comes back. Auto combat plays on.
+- Steal works at every shop counter. The port looked for the chest one
+  square too near, where the merchant stands, so a theft failed at all
+  but one counter; the controller menu offers Steal wherever it can work.
+- A dungeon trap is met by the party's nimblest living member, and a good
+  roll evades it. The original asked the leader, dead or alive, and had
+  the roll the wrong way round.
+- The controller menu offers Enter only where a town, castle or dungeon
+  stands, and X-it only where the horse or ship can be left.
+- Switching away from the window, or sending the Android app to the
+  background, no longer backs out of an open menu or closes the map.
+- Clear notes asks with No first, since it cannot be undone.
+
 ### v1.0.63, October 15, 2026
 
 - Tips is a list of topics, as the journal and the menus are: A opens a
