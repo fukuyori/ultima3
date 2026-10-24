@@ -154,7 +154,36 @@ describe('a trap', () => {
     return { io, hurt: world.member(0).hitPoints < hp };
   };
 
-  it("is evaded where the leader's knack passes, and goes off where it fails", async () => {
+  it('is met by the nimblest living member, not whoever leads', async () => {
+    const { world, io } = dungeonWorld();
+    world.dungeon.tiles.fill(DungeonCell.Wall, 0, 256);
+    world.putXYDng(DungeonCell.LadderUp, 1, 1);
+    world.putXYDng(DungeonCell.Trap, 2, 1);
+    // Norric the cleric leads; Tatiana the thief walks third. Both as nimble: the thief's knack is the cleric's and 128.
+    const [leader, thief] = [world.party.memberRosterNumber(2), world.party.memberRosterNumber(0)];
+    world.party.setMemberRosterNumber(0, leader);
+    world.party.setMemberRosterNumber(2, thief);
+    for (const m of [0, 2]) world.member(m).bytes[19] = 10;
+    world.rng.range = () => 100; // past the cleric's knack (10), within the thief's (138)
+    io.keys = [Key.Up, Key.Down, 'K'];
+    await runDungeon(world, io);
+    expect(io.output).toContain('Evaded');
+    // The thief dead, the nimblest left is Roderic the ranger (15 and 64, short of 100): it goes off.
+    const again = dungeonWorld();
+    again.world.dungeon.tiles.fill(DungeonCell.Wall, 0, 256);
+    again.world.putXYDng(DungeonCell.LadderUp, 1, 1);
+    again.world.putXYDng(DungeonCell.Trap, 2, 1);
+    again.world.party.setMemberRosterNumber(0, leader);
+    again.world.party.setMemberRosterNumber(2, thief);
+    for (const m of [0, 2]) again.world.member(m).bytes[19] = 10;
+    again.world.member(2).status = 'D';
+    again.world.rng.range = () => 100;
+    again.io.keys = [Key.Up, Key.Down, 'K'];
+    await runDungeon(again.world, again.io);
+    expect(again.io.output).not.toContain('Evaded');
+  });
+
+  it('is evaded where the knack passes, and goes off where it fails', async () => {
     const passed = await step('low');
     expect(passed.io.output).toContain('A TRAP');
     expect(passed.io.output).toContain('Evaded');

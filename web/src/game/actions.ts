@@ -111,12 +111,33 @@ export function addItem(p: PlayerRecord, offset: number, amount: number): void {
  * alchemists a smaller one.
  */
 export function stealDisarmFails(world: World, p: PlayerRecord): boolean {
+  return world.rng.range(0, 255) > knack(world, p);
+}
+
+/** A member's knack for stealing and disarming: their dexterity, and their class's bonus (`stealDisarmFails`). */
+function knack(world: World, p: PlayerRecord): number {
   const careers = String.fromCharCode(...world.resources.misc.careerTable);
   const classIndex = careers.indexOf(p.classLetter);
   let factor = p.dexterity;
   if (classIndex === 3) factor += 0x80;
   if (classIndex === 5 || classIndex === 7 || classIndex === 10 || classIndex === 9) factor += 0x40;
-  return world.rng.range(0, 255) > factor;
+  return factor;
+}
+
+/**
+ * The living member with the best knack for a check nobody chose to make - a trap sprung underfoot (this port; the
+ * original always asked the first in the marching order, dead or alive). The first of them in marching order on a
+ * tie; the first member where none is living.
+ */
+export function nimblest(world: World): PlayerRecord {
+  let best = world.member(0);
+  let bestKnack = -1;
+  for (let m = 0; m < 4; m++) {
+    if (world.party.memberSlot(m) < 0 || !world.memberAlive(m)) continue;
+    const k = knack(world, world.member(m));
+    if (k > bestKnack) [best, bestKnack] = [world.member(m), k];
+  }
+  return best;
 }
 
 /** Mirrors `BombTrap()`: every living member takes damage. */
