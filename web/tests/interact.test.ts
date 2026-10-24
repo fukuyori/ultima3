@@ -385,8 +385,13 @@ describe('menus', () => {
     await formParty(world, io);
     expect(world.autoMap.squareSeen(MapId.Sosaria, 42, 20)).toBe(true);
     expect(world.journal.clues).toEqual(['Moon#3']);
-    io.keys = ['N']; // asked, and declined
+    // Asked, and declined. No comes first, where the cursor starts: the notes cannot be had back.
+    const first: string[] = [];
+    const choose = io.chooseFromList.bind(io);
+    io.chooseFromList = (options) => (first.push(options[0].key), choose(options));
+    io.keys = ['N'];
     await clearNotes(world, io);
+    expect(first).toEqual(['N']);
     expect(world.gatesKnown).toEqual([3]);
     io.keys = ['Y', ' '];
     await clearNotes(world, io);
