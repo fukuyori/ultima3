@@ -64,6 +64,8 @@ interface Prefs {
   dungeonMap: MapMode;
   /** The virtual controller shown; on first visit, shown on a touch screen. */
   touchPad: boolean;
+  /** Battery saver: the map rests a minute after the last press (screen.ts); off unless asked for. */
+  batterySaver: boolean;
 }
 
 const DEFAULT_PREFS: Prefs = {
@@ -82,6 +84,7 @@ const DEFAULT_PREFS: Prefs = {
   musicLevel: LEVELS,
   dungeonMap: 'off',
   touchPad: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
+  batterySaver: false,
 };
 
 function loadPrefs(): Prefs {
@@ -93,6 +96,7 @@ function loadPrefs(): Prefs {
     if (prefs.tiles === 'Apple II Color TV') prefs.tiles = 'Apple II Color';
     if (!TILE_SETS.includes(prefs.tiles)) prefs.tiles = DEFAULT_PREFS.tiles;
     if (typeof prefs.scanlines !== 'boolean') prefs.scanlines = DEFAULT_PREFS.scanlines;
+    if (typeof prefs.batterySaver !== 'boolean') prefs.batterySaver = DEFAULT_PREFS.batterySaver;
     if (prefs.inputMode !== 'keyboard') prefs.inputMode = DEFAULT_PREFS.inputMode;
     if (!MAP_MODES.includes(prefs.dungeonMap)) prefs.dungeonMap = 'off';
     if (!STARVATION_MODES.includes(prefs.starvation)) prefs.starvation = 'mild';
@@ -265,7 +269,14 @@ async function start(): Promise<void> {
   screen.inputMode = params.has('controller') ? 'controller' : prefs.inputMode;
   screen.tileSetName = tiles;
   screen.scanlines = prefs.scanlines;
+  screen.batterySaver = prefs.batterySaver;
   canvas.focus();
+  // The Android app sent to the background is held as a hidden page is: its web view may not be told the page is
+  // hidden, and would go on animating, the music and the turn timer with it. Capacitor's App plugin says so.
+  const app = (window as { Capacitor?: { Plugins?: { App?: { addListener?: (e: string, f: () => void) => unknown } } } }).Capacitor?.Plugins
+    ?.App;
+  void app?.addListener?.('pause', () => keyboard.pause('focus'));
+  void app?.addListener?.('resume', () => keyboard.resume('focus'));
 
   // Whatever changes a setting (the menu, a gamepad press, Escape in a fight), remember it.
   const remember = () => {
@@ -287,6 +298,7 @@ async function start(): Promise<void> {
       musicLevel: music.level,
       dungeonMap: world.mapMode,
       touchPad: prefs.touchPad,
+      batterySaver: screen.batterySaver,
     });
   };
   screen.onSettingsChange = remember;

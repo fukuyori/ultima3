@@ -37,6 +37,14 @@ export class Keyboard {
     return this.holds.size > 0;
   }
   private readonly holds = new Set<PauseReason>();
+  /** Whether `reason` is holding the game: the window away (focus), or the Pause menu open (menu). */
+  held(reason: PauseReason): boolean {
+    return this.holds.has(reason);
+  }
+  /** When the last key came, from any source (`now`'s clock): Battery saver rests the map a minute after it. */
+  lastInputAt = 0;
+  /** Called on every key, after `onInput`: the screen wakes its frames (screen.ts `wake`). */
+  onKey: (() => void) | null = null;
   /** The pending timed wait, so it can be stopped and restarted around a pause. */
   private timed: { remaining: number; started: number; timer: ReturnType<typeof setTimeout> | null; fire: () => void } | null = null;
   /** Called when the game pauses, with what paused it. */
@@ -174,7 +182,9 @@ export class Keyboard {
    */
   push(key: string, source?: InputSource): void {
     if (source) this.lastSource = source;
+    this.lastInputAt = this.now();
     this.onInput?.();
+    this.onKey?.();
     if (this.waiter) {
       const w = this.waiter;
       this.waiter = null;

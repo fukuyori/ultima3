@@ -256,21 +256,21 @@ away.
 
 The menu holds the settings: auto combat, Visuals (the tile set and
 scanlines), Gameplay (the input mode, poison kills, starvation, balanced
-XP and the turn timer), Audio (Sound FX, Standard, Lairware or Off, and
-the FX level, music and the Music level), Tips (how the game works, for a
-new player, without the quest's answers), Help, Cheats, and Quit and save
-where the game allows it, on the surface and out of a fight. A new game's
-first turn points to Tips, once. A level is a dial, Off or 10% to 100%:
-each step is heard as it turns, the music playing under the paused game
-until the dial closes. The title screen shows the same settings under
-Settings, all but Cheats, which want a game going. The input mode is
-offered only when the menu was opened with a key press: keyboard mode
-wants a keyboard, and choosing it with a thumb or a gamepad used to leave
-a player pressing buttons the letter commands ignore. Every setting is
-remembered by the browser. A new game asks "Choose Thine Adventure!":
-Modern (recommended), Classic (hardcore, the Apple II's rules) or Story
-(relaxed), each a preset of the difficulty settings that can be changed
-afterwards.
+XP, the turn timer and Battery saver), Audio (Sound FX, Standard,
+Lairware or Off, and the FX level, music and the Music level), Tips (how
+the game works, for a new player, without the quest's answers), Help,
+Cheats, and Quit and save where the game allows it, on the surface and
+out of a fight. A new game's first turn points to Tips, once. A level is
+a dial, Off or 10% to 100%: each step is heard as it turns, the music
+playing under the paused game until the dial closes. The title screen
+shows the same settings under Settings, all but Cheats, which want a game
+going. The input mode is offered only when the menu was opened with a key
+press: keyboard mode wants a keyboard, and choosing it with a thumb or a
+gamepad used to leave a player pressing buttons the letter commands
+ignore. Every setting is remembered by the browser. A new game asks
+"Choose Thine Adventure!": Modern (recommended), Classic (hardcore, the
+Apple II's rules) or Story (relaxed), each a preset of the difficulty
+settings that can be changed afterwards.
 
 ## What changed
 
@@ -389,6 +389,9 @@ These apply whatever tile set and sound set are chosen.
   game turn-based through and through.
 - Balanced XP, on by default: a kill's experience is shared among the
   living members instead of going all to the killer.
+- Battery saver, off by default: a minute after the last press the map
+  stops animating, until the next press, for a phone or handheld left
+  with the game open. Whatever changes still shows.
 - Scanlines, off by default: the look of a CRT over the whole game, in
   any tile set, one line for each of the Apple II's 192 screen lines.
   They are drawn in the screen's own pixels, so they stay even at any

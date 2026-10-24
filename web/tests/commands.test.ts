@@ -500,6 +500,27 @@ describe('the whirlpool', () => {
     expect(world.getXYVal(32, 30)).toBe(MapValue.Whirlpool);
   });
 
+  it('drifts on out of sight without drawing the map again, and draws it where the view shows it', async () => {
+    const world = newWorld();
+    const io = new FakeIO(world.resources);
+    world.current.tiles.fill(MapValue.Water);
+    Object.assign(world.whirlpool, { x: 10, y: 10, dx: 1, dy: 0 });
+    world.putXYVal(MapValue.Whirlpool, 10, 10);
+    world.rng.range = () => 3; // no change of course
+    world.x = 40; // far away
+    world.y = 40;
+    world.whirlpoolTimer = 1;
+    await whirlpoolTick(world, io, noHooks);
+    expect(world.whirlpool.x).toBe(11);
+    expect(io.redraws).toBe(0);
+    world.x = 16; // its next square, 12, is four west of the party: in the view
+    world.y = 10;
+    world.whirlpoolTimer = 1;
+    await whirlpoolTick(world, io, noHooks);
+    expect(world.whirlpool.x).toBe(12);
+    expect(io.redraws).toBe(1);
+  });
+
   it('carries a ship to Ambrosia with the classic messages, every line within the message area', async () => {
     const world = newWorld();
     const io = new FakeIO(world.resources);
