@@ -396,7 +396,10 @@ async function encounter(world: World, io: GameIO, cell: number, arrived = true)
       world.putXYDng(0, world.x, world.y);
       io.printMessage(Msg.Trap);
       io.sound(Sound.Step);
-      if (stealDisarmFails(world, world.member(0))) return io.printMessage(Msg.Evaded);
+      // The leader's knack (thieves' the best, as at a chest) evades it, or the trap goes off. The original had this
+      // the wrong way round - a pass set the trap off and a failure evaded it, so a nimble leader fared worst - where
+      // its chests' traps have it right.
+      if (!stealDisarmFails(world, world.member(0))) return io.printMessage(Msg.Evaded);
       await bombTrap(world, io);
       return;
 

@@ -447,6 +447,13 @@ These apply whatever tile set and sound set are chosen.
   port's heading test did not wrap as the Apple II's 8-bit arithmetic did.
 - A new character could throw away their only dagger; now a dagger is
   thrown only when there is a spare.
+- A dungeon's trap went off when the party's leader had the knack to
+  evade it, and was evaded when they did not: the check ran the wrong way
+  round, where the chests' traps have it right. A nimble leader, a thief
+  above all, now evades them.
+- Steal looked for the chest just past a shop's counter, where the
+  merchant stands, so it failed at every counter but one; LairWare's
+  looks behind the merchant, where the chests are, and so does this port.
 - The last letter of Moon's "CAPESSII" sign was drawn as a door. A door
   and the letter "I" share one map value, and the Mac port decided between
   them by looking at the neighbouring tile, counting another "I" as not a

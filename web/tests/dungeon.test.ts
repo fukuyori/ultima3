@@ -134,6 +134,37 @@ describe('the dungeon loop', () => {
   });
 });
 
+describe('a trap', () => {
+  const step = async (roll: 'low' | 'high') => {
+    const { world, io } = dungeonWorld();
+    world.dungeon.tiles.fill(DungeonCell.Wall, 0, 256);
+    world.putXYDng(DungeonCell.LadderUp, 1, 1);
+    world.putXYDng(DungeonCell.Trap, 2, 1);
+    // Every roll its lowest (the knack always passes) or highest (it always fails, and the trap hits its hardest).
+    world.rng.range = (low: number, high: number) => (roll === 'low' ? low : high);
+    for (let m = 0; m < 4; m++) {
+      const p = world.member(m); // enough to live through the trap's hardest hit (119)
+      p.bytes[28] = 1;
+      p.bytes[29] = 0x90; // 400
+      p.hitPoints = 400;
+    }
+    const hp = world.member(0).hitPoints;
+    io.keys = [Key.Up, Key.Down, 'K']; // onto the trap, back, and up the ladder
+    await runDungeon(world, io);
+    return { io, hurt: world.member(0).hitPoints < hp };
+  };
+
+  it("is evaded where the leader's knack passes, and goes off where it fails", async () => {
+    const passed = await step('low');
+    expect(passed.io.output).toContain('A TRAP');
+    expect(passed.io.output).toContain('Evaded');
+    expect(passed.hurt).toBe(false);
+    const failed = await step('high');
+    expect(failed.io.output).not.toContain('Evaded');
+    expect(failed.hurt).toBe(true);
+  });
+});
+
 describe('fountain prompts', () => {
   it('asks who drinks on arrival only, not while turning or waiting on the cell', async () => {
     const { world, io } = dungeonWorld();
