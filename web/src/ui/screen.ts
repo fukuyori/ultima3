@@ -855,6 +855,7 @@ export class Screen implements GameIO {
       for (;;) {
         const key = await this.readKey();
         if (key === null) continue;
+        if (key === Key.Pause && this.readFocusPause) continue; // a window losing focus backs out of no menu
         const action = applyMenuKey(menu, options, visible, key);
         if (action.kind === 'move') {
           if (feedback) this.sound(MENU_SOUNDS.move);
@@ -1421,6 +1422,7 @@ export class Screen implements GameIO {
         const key = await this.readKey();
         if (key === null) continue;
         const letter = key.length === 1 ? key.toLowerCase() : '';
+        if (key === Key.Pause && this.readFocusPause) continue; // a window losing focus closes no map
         if (key === Key.Escape || key === Key.Pause || key === '#') break;
         if (key === Key.B || key === Key.Backspace) {
           if (back.length === 0) {
