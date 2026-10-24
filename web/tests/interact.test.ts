@@ -189,6 +189,18 @@ describe('doors, chests and stealing', () => {
     expect(io.output).toContain('GOLD+');
   });
 
+  it('starts "Who?" on the likeliest member for a chest or a theft', async () => {
+    const { world, io } = townWorld();
+    world.member(0).status = 'D'; // the thief dead: Roderic the ranger is the likeliest left
+    io.keys = [Key.Escape];
+    await steal(world, io);
+    expect(io.preferredMember).toBe(1);
+    world.putXYVal(MapValue.Chest, world.x, world.y);
+    io.keys = [Key.Escape];
+    await getChest(world, io, 0, 'command');
+    expect(io.preferredMember).toBe(1);
+  });
+
   it('a thief can steal the chest behind the merchant, two squares past the counter', async () => {
     const { world, io } = townWorld();
     world.member(0).bytes[19] = 99; // a dexterous thief never fails

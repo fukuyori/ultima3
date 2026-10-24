@@ -34,7 +34,7 @@ import {
   volume,
   stats,
   stealDisarmFails,
-  nimblest,
+  nimblestMember,
   bombTrap,
 } from './actions.ts';
 
@@ -400,7 +400,7 @@ async function encounter(world: World, io: GameIO, cell: number, arrived = true)
       // The nimblest member's knack (thieves' the best, as at a chest) evades it, or the trap goes off. The original
       // asked the first in the marching order, dead or alive, and the wrong way round - a pass set the trap off and a
       // failure evaded it, where its chests' traps have it right.
-      if (!stealDisarmFails(world, nimblest(world))) return io.printMessage(Msg.Evaded);
+      if (!stealDisarmFails(world, world.member(nimblestMember(world)))) return io.printMessage(Msg.Evaded);
       await bombTrap(world, io);
       return;
 

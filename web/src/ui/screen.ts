@@ -1795,11 +1795,12 @@ export class Screen implements GameIO {
    * prompt itself sits on the map's bottom border. The answer is echoed
    * to the message area as the typed digit was.
    */
-  async chooseMember(only?: number[]): Promise<number> {
+  async chooseMember(only?: number[], preferred?: number): Promise<number> {
     const offered = [0, 1, 2, 3].filter((m) => this.world.party.memberSlot(m) >= 0 && (!only || only.includes(m)));
     if (!this.frameShown) return this.chooseMemberByKey();
     this.borderPrompt(this.promptMode === 'controller' ? 'Who? B: Cancel' : 'Who? Esc Cancel');
-    let at = 0;
+    // The arrows start on the member likeliest to succeed, where the command says who that is.
+    let at = preferred === undefined ? 0 : Math.max(0, offered.indexOf(preferred));
     let n = 0;
     try {
       for (;;) {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { newWorld, FakeIO } from './helpers.ts';
 import { forward, retreat, turn, klimb, descend, buildDungeonView, cellAtLocation, runDungeon } from '../src/game/dungeon.ts';
-import { igniteTorch } from '../src/game/actions.ts';
+import { igniteTorch, nimblestMember } from '../src/game/actions.ts';
 import { DungeonCell } from '../src/game/world.ts';
 import { Location } from '../src/game/party.ts';
 import { MapId } from '../src/data/resources.ts';
@@ -153,6 +153,19 @@ describe('a trap', () => {
     await runDungeon(world, io);
     return { io, hurt: world.member(0).hitPoints < hp };
   };
+
+  it('names the likeliest member: the best knack, then the most hit points, then marching order', () => {
+    const { world } = dungeonWorld();
+    expect(nimblestMember(world)).toBe(0); // Tatiana, the thief
+    world.member(0).status = 'D';
+    expect(nimblestMember(world)).toBe(1); // Roderic, a ranger: dexterity 15 and a ranger's 64
+    world.member(1).status = 'D';
+    // Norric the cleric and Ghiselle the wizard, dexterity 10 each and no bonus: the more hit points, then the first.
+    world.member(3).hitPoints = 90;
+    expect(nimblestMember(world)).toBe(2);
+    world.member(2).hitPoints = 50;
+    expect(nimblestMember(world)).toBe(3);
+  });
 
   it('is met by the nimblest living member, not whoever leads', async () => {
     const { world, io } = dungeonWorld();

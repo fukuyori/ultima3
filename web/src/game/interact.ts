@@ -16,7 +16,7 @@ import { Location } from './party.ts';
 import { MapValue, Shape } from './tiles.ts';
 import { type GameIO, Sound, Music, deathSound, letterOptions } from './io.ts';
 import { getDirection, notHere, what2, cancelled, counterWithMerchant, chestBehindCounter, Msg as CmdMsg, PartyShape } from './commands.ts';
-import { getChest, incapacitated, stealDisarmFails } from './actions.ts';
+import { getChest, incapacitated, stealDisarmFails, nimblestMember } from './actions.ts';
 import { shop } from './shops.ts';
 import { attackMonster, monsterName } from './combat.ts';
 import { showBall } from './combat.ts';
@@ -274,7 +274,7 @@ export async function fire(world: World, io: GameIO): Promise<void> {
 /** S: steal from a shop's chest across the counter. (`Steal`) */
 export async function steal(world: World, io: GameIO): Promise<void> {
   io.printMessage(Msg.Steal);
-  const n = await io.chooseMember();
+  const n = await io.chooseMember(undefined, nimblestMember(world));
   if (n === 0) return cancelled(world, io);
   if (n < 1 || n > 4) return;
   const member = n - 1;

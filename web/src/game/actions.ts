@@ -125,17 +125,20 @@ function knack(world: World, p: PlayerRecord): number {
 }
 
 /**
- * The living member with the best knack for a check nobody chose to make - a trap sprung underfoot (this port; the
- * original always asked the first in the marching order, dead or alive). The first of them in marching order on a
- * tie; the first member where none is living.
+ * The member likeliest to pass a steal-and-disarm check (this port): the best knack, then the most hit points, then
+ * the first in marching order; living members only, the first member where none is living. A "Who?" for a chest or a
+ * theft starts on them, and a trap sprung underfoot - a check nobody chooses to make - is theirs to meet (the
+ * original asked the first in the marching order, dead or alive).
  */
-export function nimblest(world: World): PlayerRecord {
-  let best = world.member(0);
+export function nimblestMember(world: World): number {
+  let best = 0;
   let bestKnack = -1;
+  let bestHp = -1;
   for (let m = 0; m < 4; m++) {
     if (world.party.memberSlot(m) < 0 || !world.memberAlive(m)) continue;
-    const k = knack(world, world.member(m));
-    if (k > bestKnack) [best, bestKnack] = [world.member(m), k];
+    const p = world.member(m);
+    const [k, hp] = [knack(world, p), p.hitPoints];
+    if (k > bestKnack || (k === bestKnack && hp > bestHp)) [best, bestKnack, bestHp] = [m, k, hp];
   }
   return best;
 }
@@ -178,7 +181,7 @@ export async function getChest(world: World, io: GameIO, member: number, how: 'c
   if (how === 'command') {
     world.chestTrapsArmed = true;
     io.printMessage(Msg.GetChest);
-    const n = await io.chooseMember();
+    const n = await io.chooseMember(undefined, nimblestMember(world));
     if (n === 0) return cancelled(world, io);
     if (n < 1 || n > 4) {
       io.printMessage(Msg.NoSuchPlayer);
