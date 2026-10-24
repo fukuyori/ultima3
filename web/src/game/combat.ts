@@ -62,6 +62,8 @@ const HIT_FRAMES = 3;
 const HIT_FRAME_MS = 60;
 /** Pause before each automatic turn, so the player can follow the fight and interrupt it. */
 const AUTO_PAUSE_MS = 250;
+/** A fight whose turns have passed by themselves this long, no key pressed, pauses: the player has stepped away. */
+export const IDLE_FIGHT_PAUSE_MS = 60_000;
 
 // ---------------------------------------------------------------------------
 // Arena selection
@@ -133,6 +135,7 @@ export function loadArena(world: World, id: number): CombatState {
     markedAt: 0,
     markedFor: 0,
     markedFrozenAt: 0,
+    idleMs: 0,
   };
 }
 
@@ -442,7 +445,18 @@ async function waitForCombatKey(world: World, io: GameIO, member: number): Promi
   io.redrawMap();
   try {
     const key = await io.waitCommand('combat', limit);
-    return key ?? Key.Space;
+    if (key !== null) {
+      c.idleMs = 0;
+      return key;
+    }
+    // The turn passes by itself (Pass), as on the Apple II - until a minute of turns has passed with no key pressed:
+    // the player has stepped away, so the fight waits for them under the Pause menu instead of going on without them,
+    // this member's turn not spent (this port). Auto combat presses its own keys, and with the timer off no turn
+    // passes by itself.
+    c.idleMs += limit ?? 0;
+    if (c.idleMs < IDLE_FIGHT_PAUSE_MS) return Key.Space;
+    c.idleMs = 0;
+    return Key.Pause;
   } finally {
     c.markedFor = 0; // the outline stays, steady, while the command's prompts run (a direction, a target)
     io.redrawMap();

@@ -118,6 +118,11 @@ export interface CombatState {
   markedFor: number;
   /** When the outline's fade was frozen (a menu opened, so the turn can no longer expire), or 0. */
   markedFrozenAt: number;
+  /**
+   * How long the members' turns have passed by themselves, one after another, with no key pressed: the time they
+   * were given, ms (this port). A minute of it and the fight pauses (combat.ts `waitForCombatKey`).
+   */
+  idleMs: number;
 }
 
 /**

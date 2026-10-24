@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { newWorld, FakeIO } from './helpers.ts';
 import {
   combat,
+  IDLE_FIGHT_PAUSE_MS,
   chooseArena,
   loadArena,
   planMonster,
@@ -204,6 +205,54 @@ describe('a whole fight', () => {
     expect(m.type(0)).toBe(0);
     expect(world.getXYVal(33, 32)).toBe(MapValue.Chest + 2); // chest on brush
     expect(io.output).toContain('VICTORY');
+  });
+});
+
+describe('a fight left alone', () => {
+  /**
+   * A fight against one orc where nobody presses anything for the first `idle` waits (a key at any of `pressedAt`),
+   * strong members so it lasts. Returns at which wait the Pause menu first opened (or -1), whose turn it was, and
+   * whose turn the next wait was for.
+   */
+  const leftAlone = async (timer: 'fast' | 'slow' | 'off', pressedAt: number[] = [], idle = 40) => {
+    const { world, io } = flatWorld();
+    world.timer = timer;
+    world.party.location = Location.Town; // one monster only
+    for (let m = 0; m < 4; m++) world.member(m).hitPoints = 900;
+    let waits = 0;
+    let pausedAt = -1;
+    let pausedOn = -1;
+    let nextOn = -1;
+    const endFight = () => world.combat?.monsters.forEach((m) => (m.hp = 0));
+    io.keyProvider = () => ' ';
+    io.waitCommand = async () => {
+      if (!world.combat?.monsters.some((m) => m.hp > 0)) return ' ';
+      waits++;
+      if (pausedAt >= 0 && nextOn < 0) nextOn = world.combat.activeMember;
+      if (waits >= idle) endFight();
+      return pressedAt.includes(waits) ? ' ' : null; // null: the turn's time ran out
+    };
+    io.showPause = async () => {
+      if (pausedAt < 0) [pausedAt, pausedOn] = [waits, world.combat!.activeMember]; // the first time
+      return null;
+    };
+    await combat(world, io, MapValue.Orc >> 1, 0);
+    return { pausedAt, pausedOn, nextOn };
+  };
+
+  it('pauses once a minute of turns has passed by itself, the waiting member keeping their turn', async () => {
+    const fast = await leftAlone('fast'); // 4 s a turn
+    expect(fast.pausedAt).toBe(IDLE_FIGHT_PAUSE_MS / 4000);
+    expect(fast.nextOn).toBe(fast.pausedOn); // after the Pause menu, the same member's turn
+    expect((await leftAlone('slow')).pausedAt).toBe(IDLE_FIGHT_PAUSE_MS / 10000); // 10 s a turn
+  });
+
+  it('counts the minute again from any key pressed', async () => {
+    expect((await leftAlone('fast', [10])).pausedAt).toBe(10 + IDLE_FIGHT_PAUSE_MS / 4000);
+  });
+
+  it('never pauses with the timer off, where no turn passes by itself', async () => {
+    expect((await leftAlone('off')).pausedAt).toBe(-1);
   });
 });
 

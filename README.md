@@ -390,7 +390,9 @@ These apply whatever tile set and sound set are chosen.
 - Starvation: Classic (the Apple II's, to the death), Mild (stops at half
   hit points, the default) or None.
 - Timer: Fast (the Apple II's turn timer), Slow, or Off, which makes the
-  game turn-based through and through.
+  game turn-based through and through. A fight whose turns have passed by
+  themselves for a minute, no key pressed, pauses until the player comes
+  back.
 - Balanced XP, on by default: a kill's experience is shared among the
   living members instead of going all to the killer.
 - Battery saver, off by default: a minute after the last press the map
