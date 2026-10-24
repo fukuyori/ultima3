@@ -305,7 +305,11 @@ These apply whatever tile set and sound set are chosen.
 - Menus replace typed numbers on the title and party screens: the roster
   is a pick list, the party a list in marching order, attributes a screen
   where left and right spend the points, and a random name is offered.
-  "Who?" prompts move a pair of arrows through the stats boxes.
+  "Who?" prompts move a pair of arrows through the stats boxes, starting
+  on the member the command most likely wants: the nimblest for a chest
+  or a theft, the most hurt for a heal, the poisoned, dead or ashes for a
+  cure, resurrection or recall, the caster with the most mana for Cast,
+  and someone without the mark for a rod.
 - A virtual controller on touch screens, a gamepad through the Gamepad
   API, and an on-screen keyboard for names.
 

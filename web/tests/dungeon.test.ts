@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { newWorld, FakeIO } from './helpers.ts';
 import { forward, retreat, turn, klimb, descend, buildDungeonView, cellAtLocation, runDungeon } from '../src/game/dungeon.ts';
-import { igniteTorch, nimblestMember } from '../src/game/actions.ts';
+import { igniteTorch } from '../src/game/actions.ts';
+import { nimblestMember } from '../src/game/whom.ts';
 import { DungeonCell } from '../src/game/world.ts';
 import { Location } from '../src/game/party.ts';
 import { MapId } from '../src/data/resources.ts';

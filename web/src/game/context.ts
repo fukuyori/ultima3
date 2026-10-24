@@ -17,12 +17,7 @@ import { PartyShape, counterWithMerchant, chestBehindCounter } from './commands.
 import { monsterAt } from './combat.ts';
 import { quickSpell, repelSpell, spellName, spellCost, healPlan, safeChestCaster, lightPlan, SAFE_CHEST } from './spells.ts';
 import type { PlayerRecord } from './player.ts';
-
-/** Fighters, thieves and barbarians have no magic. */
-export function hasMagic(world: World, p: PlayerRecord): boolean {
-  const careers = String.fromCharCode(...world.resources.misc.careerTable);
-  return ![0, 3, 5].includes(careers.indexOf(p.classLetter));
-}
+import { hasMagic } from './whom.ts';
 
 /** Living members, in marching order. */
 function living(world: World): PlayerRecord[] {

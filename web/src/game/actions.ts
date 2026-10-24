@@ -15,6 +15,7 @@ import { type GameIO, Key, Sound, deathSound, type MenuOption } from './io.ts';
 import { PlayerRecord } from './player.ts';
 import { cancelled } from './commands.ts';
 import { gearCard } from './cards.ts';
+import { knack, nimblestMember } from './whom.ts';
 
 const Msg = {
   GetChest: 40,
@@ -112,35 +113,6 @@ export function addItem(p: PlayerRecord, offset: number, amount: number): void {
  */
 export function stealDisarmFails(world: World, p: PlayerRecord): boolean {
   return world.rng.range(0, 255) > knack(world, p);
-}
-
-/** A member's knack for stealing and disarming: their dexterity, and their class's bonus (`stealDisarmFails`). */
-function knack(world: World, p: PlayerRecord): number {
-  const careers = String.fromCharCode(...world.resources.misc.careerTable);
-  const classIndex = careers.indexOf(p.classLetter);
-  let factor = p.dexterity;
-  if (classIndex === 3) factor += 0x80;
-  if (classIndex === 5 || classIndex === 7 || classIndex === 10 || classIndex === 9) factor += 0x40;
-  return factor;
-}
-
-/**
- * The member likeliest to pass a steal-and-disarm check (this port): the best knack, then the most hit points, then
- * the first in marching order; living members only, the first member where none is living. A "Who?" for a chest or a
- * theft starts on them, and a trap sprung underfoot - a check nobody chooses to make - is theirs to meet (the
- * original asked the first in the marching order, dead or alive).
- */
-export function nimblestMember(world: World): number {
-  let best = 0;
-  let bestKnack = -1;
-  let bestHp = -1;
-  for (let m = 0; m < 4; m++) {
-    if (world.party.memberSlot(m) < 0 || !world.memberAlive(m)) continue;
-    const p = world.member(m);
-    const [k, hp] = [knack(world, p), p.hitPoints];
-    if (k > bestKnack || (k === bestKnack && hp > bestHp)) [best, bestKnack, bestHp] = [m, k, hp];
-  }
-  return best;
 }
 
 /** Mirrors `BombTrap()`: every living member takes damage. */

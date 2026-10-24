@@ -34,9 +34,9 @@ import {
   volume,
   stats,
   stealDisarmFails,
-  nimblestMember,
   bombTrap,
 } from './actions.ts';
+import { nimblestMember, unmarked } from './whom.ts';
 
 const Msg = {
   Pass: 23,
@@ -408,10 +408,11 @@ async function encounter(world: World, io: GameIO, cell: number, arrived = true)
       io.showImage('Rod');
       io.music(Music.Shrine);
       io.printMessage(Msg.RedHotRod);
-      const n = await io.chooseMember();
+      const mark = 1 << ((world.x & 3) + 4);
+      const n = await io.chooseMember(undefined, unmarked(world, mark));
       if (n >= 1 && n <= 4) {
         const p = world.member(n - 1);
-        p.bytes[14] |= 1 << ((world.x & 3) + 4);
+        p.bytes[14] |= mark;
         rodFound(world, world.current.id, world.x);
         await io.flashMember(n - 1);
         io.sound(Sound.Hit);

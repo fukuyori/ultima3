@@ -138,7 +138,7 @@ export interface GameIO {
    * `only` (0-based members) limits what the controller menu lists, say to
    * the members who hold a gem; a keyboard still accepts any digit. The
    * selection starts on `preferred` (0-based), where given: the member
-   * likeliest to succeed (actions.ts nimblestMember). (`GetChar`)
+   * the command most likely wants (whom.ts). (`GetChar`)
    */
   chooseMember(only?: number[], preferred?: number): Promise<number>;
   /**
