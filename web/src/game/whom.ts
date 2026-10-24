@@ -83,12 +83,16 @@ export function ashes(world: World): number | undefined {
   return best(world, (m) => world.member(m).status === 'A');
 }
 
+/** What touching a rod costs in hit points (dungeon.ts). */
+export const ROD_BURN = 50;
+
 /**
- * A living member without the mark a rod gives (its bit of the marks), the most hit points first, since the rod
- * burns 50: every member needs the Marks of Fire and Force, so the rod is passed round the party.
+ * A living member without the mark a rod gives (its bit of the marks) who can bear its burn, the most hit points
+ * first: every member needs the Marks of Fire and Force, so the rod is passed round the party. One it would kill is
+ * never the default, though any member may still be chosen.
  */
 export function unmarked(world: World, bit: number): number | undefined {
-  return best(world, (m) => world.memberAlive(m) && (world.member(m).marks & bit) === 0);
+  return best(world, (m) => world.memberAlive(m) && (world.member(m).marks & bit) === 0 && world.member(m).hitPoints > ROD_BURN);
 }
 
 /** The living caster with the most mana, for Cast outside a fight. */

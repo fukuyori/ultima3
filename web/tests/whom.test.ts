@@ -61,6 +61,17 @@ describe('where a "Who?" starts', () => {
     expect(unmarked(world, 0x10)).toBeUndefined();
   });
 
+  it("never a rod's on a member its burn of 50 would kill", () => {
+    const world = newWorld();
+    world.member(0).hitPoints = 50; // the burn would kill her
+    world.member(1).hitPoints = 51;
+    world.member(2).hitPoints = 30;
+    world.member(3).hitPoints = 40;
+    expect(unmarked(world, 0x10)).toBe(1); // the only one who lives through it
+    world.member(1).hitPoints = 50;
+    expect(unmarked(world, 0x10)).toBeUndefined(); // nobody: the first member, as ever, the choice the player's
+  });
+
   it('Cast on the living caster with the most mana', () => {
     const world = newWorld();
     expect(bestCaster(world)).toBe(1); // Roderic, the first caster: the thief has no magic

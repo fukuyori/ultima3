@@ -36,7 +36,7 @@ import {
   stealDisarmFails,
   bombTrap,
 } from './actions.ts';
-import { nimblestMember, unmarked } from './whom.ts';
+import { nimblestMember, unmarked, ROD_BURN } from './whom.ts';
 
 const Msg = {
   Pass: 23,
@@ -416,7 +416,7 @@ async function encounter(world: World, io: GameIO, cell: number, arrived = true)
         rodFound(world, world.current.id, world.x);
         await io.flashMember(n - 1);
         io.sound(Sound.Hit);
-        if (p.subtractHitPoints(50)) io.sound(deathSound(p.sex));
+        if (p.subtractHitPoints(ROD_BURN)) io.sound(deathSound(p.sex));
         io.printMessage(Msg.LeftAMark);
       }
       io.updateStats();
