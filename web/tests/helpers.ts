@@ -83,7 +83,10 @@ export class FakeIO implements GameIO {
     return this.waitKeyOrTimeout();
   }
   /** A digit answers; Escape cancels (0), as the Screen's prompt does. */
-  async chooseMember(_only?: number[]): Promise<number> {
+  /** The member the last "Who?" would have started on (`chooseMember`'s `preferred`). */
+  preferredMember: number | undefined;
+  async chooseMember(_only?: number[], preferred?: number): Promise<number> {
+    this.preferredMember = preferred;
     const key = (await this.waitKey()).toUpperCase();
     if (key === Key.Escape) {
       this.output += ' \n';

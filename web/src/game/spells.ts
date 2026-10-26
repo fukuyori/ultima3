@@ -18,6 +18,7 @@ import { cardRow, cardWrap } from './cards.ts';
 import { getDirection, cancelled } from './commands.ts';
 import { shoot, showBall, damageMonster } from './combat.ts';
 import { getChest, incapacitated, chestHere } from './actions.ts';
+import { mostHurt, poisoned, fallen, ashes, bestCaster } from './whom.ts';
 
 const Msg = {
   CastByWhom: 119,
@@ -58,7 +59,7 @@ const NOT_A_MAGE = -1;
 export async function cast(world: World, io: GameIO, member?: number): Promise<boolean> {
   if (member === undefined) {
     io.printMessage(Msg.CastByWhom);
-    const n = await io.chooseMember();
+    const n = await io.chooseMember(undefined, bestCaster(world));
     if (n === 0) cancelled(world, io);
     if (n < 1 || n > 4) return false;
     member = n - 1;
@@ -334,9 +335,8 @@ export interface HealPlan {
 export function healPlan(world: World): HealPlan | null {
   const living = [0, 1, 2, 3].filter((m) => world.memberAlive(m));
   const gap = (m: number) => world.member(m).maxHitPoints - world.member(m).hitPoints;
-  const wounded = living.filter((m) => gap(m) > 0).sort((a, b) => gap(b) - gap(a));
-  if (wounded.length === 0) return null;
-  const target = wounded[0];
+  const target = mostHurt(world);
+  if (target === undefined) return null;
   const careers = String.fromCharCode(...world.resources.misc.careerTable);
   const casters = living
     .filter((m) => CLERIC_CASTERS.includes(careers.indexOf(world.member(m).classLetter)))
@@ -568,7 +568,7 @@ async function spellEffect(world: World, io: GameIO, member: number, spell: numb
     case 23: {
       // Alcort: cure poison
       io.printMessage(Msg.CureWhom);
-      const n = await io.chooseMember();
+      const n = await io.chooseMember(undefined, poisoned(world));
       if (n === 0) return refund(world, io, member, spell);
       if (n < 1 || n > 4) return failed(io);
       await io.flashMember(n - 1);
@@ -595,7 +595,7 @@ async function spellEffect(world: World, io: GameIO, member: number, spell: numb
       // Surmandum: resurrect
       if (inCombat) return failed(io);
       io.printMessage(Msg.ResurrectWhom);
-      const n = await io.chooseMember();
+      const n = await io.chooseMember(undefined, fallen(world));
       if (n === 0) return refund(world, io, member, spell);
       if (n < 1 || n > 4) return failed(io);
       await io.flashMember(n - 1);
@@ -613,7 +613,7 @@ async function spellEffect(world: World, io: GameIO, member: number, spell: numb
       // Anju Sermani: recall from ashes, at the cost of 5 wisdom
       if (inCombat) return failed(io);
       io.printMessage(Msg.RecallWhom);
-      const n = await io.chooseMember();
+      const n = await io.chooseMember(undefined, ashes(world));
       if (n === 0) return refund(world, io, member, spell);
       if (n < 1 || n > 4) return failed(io);
       await io.flashMember(n - 1);
@@ -739,7 +739,7 @@ async function necorp(world: World, io: GameIO, spell: number): Promise<void> {
 /** Mirrors `Heal()`: ask whom, then heal them. */
 async function heal(world: World, io: GameIO, caster: number, spell: number, amount: number): Promise<void> {
   io.printMessage(Msg.HealWhom);
-  const n = await io.chooseMember();
+  const n = await io.chooseMember(undefined, mostHurt(world));
   if (n === 0) return refund(world, io, caster, spell);
   if (n < 1 || n > 4) return failed(io);
   await healMember(world, io, spell, amount, n - 1);

@@ -13,16 +13,11 @@ import { World, DungeonCell } from './world.ts';
 import { Location } from './party.ts';
 import { MapValue } from './tiles.ts';
 import type { CommandScope, MenuOption } from './io.ts';
-import { PartyShape, counterWithMerchant } from './commands.ts';
+import { PartyShape, counterWithMerchant, chestBehindCounter } from './commands.ts';
 import { monsterAt } from './combat.ts';
 import { quickSpell, repelSpell, spellName, spellCost, healPlan, safeChestCaster, lightPlan, SAFE_CHEST } from './spells.ts';
 import type { PlayerRecord } from './player.ts';
-
-/** Fighters, thieves and barbarians have no magic. */
-export function hasMagic(world: World, p: PlayerRecord): boolean {
-  const careers = String.fromCharCode(...world.resources.misc.careerTable);
-  return ![0, 3, 5].includes(careers.indexOf(p.classLetter));
-}
+import { hasMagic } from './whom.ts';
 
 /** Living members, in marching order. */
 function living(world: World): PlayerRecord[] {
@@ -103,17 +98,16 @@ export function commandAvailability(world: World, scope: CommandScope): Map<stri
     if (world.monsters.at(xs, ys) >= 0) creature = true;
     // A door to either side: in a town or castle, or before two of Ambrosia's shrines.
     if (dx !== 0 && dy === 0 && world.getXYVal(xs, ys) === MapValue.LetterI) door = true;
-    if (inTown) {
-      const tile = world.getXYVal(xs, ys);
-      const isCounter = tile >= MapValue.Wall2 && tile < MapValue.SnakeBottom;
-      if (isCounter && world.getXYVal(xs + dx, ys + dy) === MapValue.Chest) counter = true;
-    }
+    // A shop counter with a chest behind the merchant: Steal (interact.ts steal).
+    if (inTown && chestBehindCounter(world, xs, ys, dx, dy)) counter = true;
   }
 
+  // A place's square with the place standing on it (commands.ts enter): not Dawn's while it is forest.
   let entrance = false;
   if (loc === Location.Sosaria) {
     const { locationX, locationY } = world.resources.misc;
-    for (let i = 0; i < 32; i++) if (locationX[i] === world.x && locationY[i] === world.y) entrance = true;
+    const standing = here === MapValue.Town || here === MapValue.Castle || here === MapValue.Dungeon;
+    for (let i = 0; i < 32; i++) if (standing && locationX[i] === world.x && locationY[i] === world.y) entrance = true;
   } else if (loc === Location.Ambrosia) {
     entrance = here === MapValue.Shrine;
   }
@@ -122,7 +116,8 @@ export function commandAvailability(world: World, scope: CommandScope): Map<stri
   set('T', inTown);
   set('E', entrance);
   set('B', shape === PartyShape.OnFoot && (here === MapValue.Horse || here === MapValue.Frigate));
-  set('X', shape === PartyShape.Horse || shape === PartyShape.Frigate);
+  // A horse is left only on grass, a ship only on water (commands.ts exit).
+  set('X', (shape === PartyShape.Horse || shape === PartyShape.Frigate) && here <= MapValue.Grass);
   set('F', shape === PartyShape.Frigate);
   set('G', here >= MapValue.Chest && here <= MapValue.Chest + 3);
   set('U', door);

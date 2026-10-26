@@ -582,7 +582,7 @@ export async function disperseParty(world: World, io: GameIO): Promise<void> {
 
 /**
  * Clear notes (this port): forget what the party has seen and learnt - the maps, the journal, the moongates come
- * out of - after asking, the Yes saying what goes. Forming a party keeps them, so members may come and go in one adventure; this
+ * out of - after asking, No first (it cannot be undone) and the Yes saying what goes. Forming a party keeps them, so members may come and go in one adventure; this
  * starts a new one's. The Organize menu's caller saves the game after.
  */
 export async function clearNotes(world: World, io: GameIO): Promise<void> {
@@ -590,8 +590,8 @@ export async function clearNotes(world: World, io: GameIO): Promise<void> {
   io.centreText(11, 'CLEAR NOTES');
   const answer = await io.chooseFromList(
     [
+      { key: 'N', label: 'No, keep them' },
       { key: 'Y', label: 'Yes, clear map, journal, moongates' },
-      { key: 'N', label: 'No' },
     ],
     { row: MENU_ROW, title: 'Clear notes?' },
   );

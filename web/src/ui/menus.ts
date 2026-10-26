@@ -412,16 +412,26 @@ export function applyMenuKey(menu: MenuWindow, options: MenuOption[], visible: M
 export const GAMEPAD_REPEAT_FIRST_MS = 250;
 export const GAMEPAD_REPEAT_MS = 120;
 
+/** How near its centre a stick axis must come to count as at rest (`GamepadReader`). */
+export const STICK_REST = 0.25;
+
 /**
  * Reads gamepads through the Gamepad API and pushes button presses into the
  * keyboard queue as keys. Standard mapping: buttons 0-3 are A, B, X, Y and
  * 12-15 the d-pad; the left stick also steers. A held direction repeats
  * while the game is waiting for a key, so walking flows at the game's pace
  * and no presses pile up in the queue; the buttons never repeat.
+ *
+ * A stick's axis steers only once it has been seen at rest near its centre
+ * (the Ultima V port's): some pads report a trigger as an axis resting at
+ * -1, and a worn stick drifts, either of which would be a direction held
+ * for ever.
  */
 export class GamepadReader {
   /** For each pad and key held: when it went down and when it last counted. */
   private held = new Map<string, { since: number; last: number }>();
+  /** The stick axes seen at rest, by pad and axis: only these steer. */
+  private rested = new Set<string>();
 
   constructor(
     private readonly keyboard: Pick<Keyboard, 'push' | 'waiting'>,
@@ -431,11 +441,26 @@ export class GamepadReader {
       typeof navigator === 'undefined' || !navigator.getGamepads ? [] : navigator.getGamepads(),
   ) {}
 
-  /** Call once per animation frame. */
-  poll(): void {
+  /** Whether any pad is connected: the screen reads them only while one is (screen.ts `readPads`). */
+  connected(): boolean {
+    return this.pads().some((pad) => pad !== null);
+  }
+
+  /** Call once per animation frame. Returns whether any pad is connected, to go on reading (screen.ts `readPads`). */
+  poll(): boolean {
     const t = this.now();
+    let any = false;
     for (const pad of this.pads()) {
       if (!pad) continue;
+      any = true;
+      // An axis, once seen at rest; until then, none.
+      const axis = (n: number): number => {
+        const value = pad.axes[n] ?? 0;
+        const id = `${pad.index}:${pad.id}:${n}`;
+        if (Math.abs(value) < STICK_REST) this.rested.add(id);
+        return this.rested.has(id) ? value : 0;
+      };
+      const [x, y] = [axis(0), axis(1)];
       const map: [string, boolean][] = [
         [Key.A, pad.buttons[0]?.pressed ?? false],
         [Key.B, pad.buttons[1]?.pressed ?? false],
@@ -444,10 +469,10 @@ export class GamepadReader {
         // The two system buttons either side of the maker's logo (View and Menu on an Xbox pad, Select and Start
         // elsewhere): both pause, as a console's do.
         [Key.Pause, (pad.buttons[8]?.pressed ?? false) || (pad.buttons[9]?.pressed ?? false)],
-        [Key.Up, (pad.buttons[12]?.pressed ?? false) || (pad.axes[1] ?? 0) < -0.5],
-        [Key.Down, (pad.buttons[13]?.pressed ?? false) || (pad.axes[1] ?? 0) > 0.5],
-        [Key.Left, (pad.buttons[14]?.pressed ?? false) || (pad.axes[0] ?? 0) < -0.5],
-        [Key.Right, (pad.buttons[15]?.pressed ?? false) || (pad.axes[0] ?? 0) > 0.5],
+        [Key.Up, (pad.buttons[12]?.pressed ?? false) || y < -0.5],
+        [Key.Down, (pad.buttons[13]?.pressed ?? false) || y > 0.5],
+        [Key.Left, (pad.buttons[14]?.pressed ?? false) || x < -0.5],
+        [Key.Right, (pad.buttons[15]?.pressed ?? false) || x > 0.5],
       ];
       for (const [key, down] of map) {
         const id = `${pad.index}:${key}`;
@@ -469,5 +494,6 @@ export class GamepadReader {
         }
       }
     }
+    return any;
   }
 }

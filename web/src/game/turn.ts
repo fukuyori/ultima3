@@ -175,6 +175,12 @@ export async function ageChars(world: World, io: GameIO): Promise<void> {
  * whirlpool drifts across Sosaria's oceans, occasionally changing course,
  * sinks any frigate it touches, and drags the party under if it reaches them.
  */
+/** Whether the party's view shows square (x, y) of the surface, the way round the wrapping map that is shorter. */
+function inView(world: World, x: number, y: number): boolean {
+  const near = (d: number) => Math.abs(((((d + 32) % 64) + 64) % 64) - 32) <= VIEW_CENTRE;
+  return near(x - world.x) && near(y - world.y);
+}
+
 export async function whirlpoolTick(world: World, io: GameIO, hooks: TurnHooks): Promise<void> {
   world.whirlpoolTimer--;
   if (world.whirlpoolTimer > 0) return;
@@ -197,16 +203,17 @@ export async function whirlpoolTick(world: World, io: GameIO, hooks: TurnHooks):
     if (ahead === MapValue.Water) {
       world.putXYVal(MapValue.Whirlpool, nx, ny);
       world.putXYVal(MapValue.Water, w.x, w.y);
+      // Drawn again only where the view shows it: it drifts on in real time between keys, out of sight too.
+      if (inView(world, w.x, w.y) || inView(world, nx, ny)) io.redrawMap();
       w.x = nx;
       w.y = ny;
-      io.redrawMap();
     } else if (ahead === MapValue.Frigate) {
       // Sink the ship: the whirlpool takes its square, water takes the old one.
       world.putXYVal(MapValue.Whirlpool, nx, ny);
       world.putXYVal(MapValue.Water, w.x, w.y);
+      if (inView(world, w.x, w.y) || inView(world, nx, ny)) io.redrawMap();
       w.x = nx;
       w.y = ny;
-      io.redrawMap();
       // A party standing on its ship (X-it at sea) goes down with it, as a party aboard does. The Mac sank the ship
       // under them and left them standing on the water, with no way off it.
       if (w.x === world.x && w.y === world.y) return hooks.goWhirlpool();

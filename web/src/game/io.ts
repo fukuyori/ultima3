@@ -136,9 +136,11 @@ export interface GameIO {
   /**
    * After a "whom?" prompt: 1..4, or 0 when cancelled. Echoes the answer.
    * `only` (0-based members) limits what the controller menu lists, say to
-   * the members who hold a gem; a keyboard still accepts any digit. (`GetChar`)
+   * the members who hold a gem; a keyboard still accepts any digit. The
+   * selection starts on `preferred` (0-based), where given: the member
+   * the command most likely wants (whom.ts). (`GetChar`)
    */
-  chooseMember(only?: number[]): Promise<number>;
+  chooseMember(only?: number[], preferred?: number): Promise<number>;
   /**
    * After a "Direction-" prompt: a movement key (arrows or keypad digits), the
    * space bar when `allowNone`, or null when cancelled.

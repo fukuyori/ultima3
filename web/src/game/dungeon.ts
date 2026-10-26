@@ -36,6 +36,7 @@ import {
   stealDisarmFails,
   bombTrap,
 } from './actions.ts';
+import { nimblestMember, unmarked, ROD_BURN } from './whom.ts';
 
 const Msg = {
   Pass: 23,
@@ -396,7 +397,10 @@ async function encounter(world: World, io: GameIO, cell: number, arrived = true)
       world.putXYDng(0, world.x, world.y);
       io.printMessage(Msg.Trap);
       io.sound(Sound.Step);
-      if (stealDisarmFails(world, world.member(0))) return io.printMessage(Msg.Evaded);
+      // The nimblest member's knack (thieves' the best, as at a chest) evades it, or the trap goes off. The original
+      // asked the first in the marching order, dead or alive, and the wrong way round - a pass set the trap off and a
+      // failure evaded it, where its chests' traps have it right.
+      if (!stealDisarmFails(world, world.member(nimblestMember(world)))) return io.printMessage(Msg.Evaded);
       await bombTrap(world, io);
       return;
 
@@ -404,14 +408,15 @@ async function encounter(world: World, io: GameIO, cell: number, arrived = true)
       io.showImage('Rod');
       io.music(Music.Shrine);
       io.printMessage(Msg.RedHotRod);
-      const n = await io.chooseMember();
+      const mark = 1 << ((world.x & 3) + 4);
+      const n = await io.chooseMember(undefined, unmarked(world, mark));
       if (n >= 1 && n <= 4) {
         const p = world.member(n - 1);
-        p.bytes[14] |= 1 << ((world.x & 3) + 4);
+        p.bytes[14] |= mark;
         rodFound(world, world.current.id, world.x);
         await io.flashMember(n - 1);
         io.sound(Sound.Hit);
-        if (p.subtractHitPoints(50)) io.sound(deathSound(p.sex));
+        if (p.subtractHitPoints(ROD_BURN)) io.sound(deathSound(p.sex));
         io.printMessage(Msg.LeftAMark);
       }
       io.updateStats();

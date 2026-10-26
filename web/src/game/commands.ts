@@ -203,6 +203,18 @@ export type Bump =
   | { kind: 'door'; dx: number; dy: number }
   | null;
 
+/**
+ * The chest a thief could take across the counter at (xs, ys), reached by the step (dx, dy): it stands two squares
+ * past the counter, behind the merchant's row, as LairWare's `Steal` looks for it (`xs + dx + dx`). Null where the
+ * square is no counter (a wall or letter tile) or no chest is there.
+ */
+export function chestBehindCounter(world: World, xs: number, ys: number, dx: number, dy: number): { x: number; y: number } | null {
+  const tile = world.getXYVal(xs, ys);
+  if (tile < MapValue.Wall2 || tile >= MapValue.SnakeBottom) return null;
+  const [x, y] = [world.constrain(xs + 2 * dx), world.constrain(ys + 2 * dy)];
+  return world.getXYVal(x, y) === MapValue.Chest ? { x, y } : null;
+}
+
 /** Is this map value a counter (a wall or letter tile) with a merchant behind it? (`Transact`) */
 export function counterWithMerchant(world: World, xs: number, ys: number, dx: number, dy: number): boolean {
   const tile = world.getXYVal(xs, ys);

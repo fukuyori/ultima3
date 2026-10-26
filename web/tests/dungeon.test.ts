@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { newWorld, FakeIO } from './helpers.ts';
 import { forward, retreat, turn, klimb, descend, buildDungeonView, cellAtLocation, runDungeon } from '../src/game/dungeon.ts';
 import { igniteTorch } from '../src/game/actions.ts';
+import { nimblestMember } from '../src/game/whom.ts';
 import { DungeonCell } from '../src/game/world.ts';
 import { Location } from '../src/game/party.ts';
 import { MapId } from '../src/data/resources.ts';
@@ -131,6 +132,79 @@ describe('the dungeon loop', () => {
     expect(io.output).toContain('ARGH! BLAH! YUK!');
     expect(world.member(0).hitPoints).toBe(hp - 25);
     expect(world.dungeon.exit).toBe(true);
+  });
+});
+
+describe('a trap', () => {
+  const step = async (roll: 'low' | 'high') => {
+    const { world, io } = dungeonWorld();
+    world.dungeon.tiles.fill(DungeonCell.Wall, 0, 256);
+    world.putXYDng(DungeonCell.LadderUp, 1, 1);
+    world.putXYDng(DungeonCell.Trap, 2, 1);
+    // Every roll its lowest (the knack always passes) or highest (it always fails, and the trap hits its hardest).
+    world.rng.range = (low: number, high: number) => (roll === 'low' ? low : high);
+    for (let m = 0; m < 4; m++) {
+      const p = world.member(m); // enough to live through the trap's hardest hit (119)
+      p.bytes[28] = 1;
+      p.bytes[29] = 0x90; // 400
+      p.hitPoints = 400;
+    }
+    const hp = world.member(0).hitPoints;
+    io.keys = [Key.Up, Key.Down, 'K']; // onto the trap, back, and up the ladder
+    await runDungeon(world, io);
+    return { io, hurt: world.member(0).hitPoints < hp };
+  };
+
+  it('names the likeliest member: the best knack, then the most hit points, then marching order', () => {
+    const { world } = dungeonWorld();
+    expect(nimblestMember(world)).toBe(0); // Tatiana, the thief
+    world.member(0).status = 'D';
+    expect(nimblestMember(world)).toBe(1); // Roderic, a ranger: dexterity 15 and a ranger's 64
+    world.member(1).status = 'D';
+    // Norric the cleric and Ghiselle the wizard, dexterity 10 each and no bonus: the more hit points, then the first.
+    world.member(3).hitPoints = 90;
+    expect(nimblestMember(world)).toBe(2);
+    world.member(2).hitPoints = 50;
+    expect(nimblestMember(world)).toBe(3);
+  });
+
+  it('is met by the nimblest living member, not whoever leads', async () => {
+    const { world, io } = dungeonWorld();
+    world.dungeon.tiles.fill(DungeonCell.Wall, 0, 256);
+    world.putXYDng(DungeonCell.LadderUp, 1, 1);
+    world.putXYDng(DungeonCell.Trap, 2, 1);
+    // Norric the cleric leads; Tatiana the thief walks third. Both as nimble: the thief's knack is the cleric's and 128.
+    const [leader, thief] = [world.party.memberRosterNumber(2), world.party.memberRosterNumber(0)];
+    world.party.setMemberRosterNumber(0, leader);
+    world.party.setMemberRosterNumber(2, thief);
+    for (const m of [0, 2]) world.member(m).bytes[19] = 10;
+    world.rng.range = () => 100; // past the cleric's knack (10), within the thief's (138)
+    io.keys = [Key.Up, Key.Down, 'K'];
+    await runDungeon(world, io);
+    expect(io.output).toContain('Evaded');
+    // The thief dead, the nimblest left is Roderic the ranger (15 and 64, short of 100): it goes off.
+    const again = dungeonWorld();
+    again.world.dungeon.tiles.fill(DungeonCell.Wall, 0, 256);
+    again.world.putXYDng(DungeonCell.LadderUp, 1, 1);
+    again.world.putXYDng(DungeonCell.Trap, 2, 1);
+    again.world.party.setMemberRosterNumber(0, leader);
+    again.world.party.setMemberRosterNumber(2, thief);
+    for (const m of [0, 2]) again.world.member(m).bytes[19] = 10;
+    again.world.member(2).status = 'D';
+    again.world.rng.range = () => 100;
+    again.io.keys = [Key.Up, Key.Down, 'K'];
+    await runDungeon(again.world, again.io);
+    expect(again.io.output).not.toContain('Evaded');
+  });
+
+  it('is evaded where the knack passes, and goes off where it fails', async () => {
+    const passed = await step('low');
+    expect(passed.io.output).toContain('A TRAP');
+    expect(passed.io.output).toContain('Evaded');
+    expect(passed.hurt).toBe(false);
+    const failed = await step('high');
+    expect(failed.io.output).not.toContain('Evaded');
+    expect(failed.hurt).toBe(true);
   });
 });
 

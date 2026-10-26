@@ -15,6 +15,7 @@ import { type GameIO, Key, Sound, deathSound, type MenuOption } from './io.ts';
 import { PlayerRecord } from './player.ts';
 import { cancelled } from './commands.ts';
 import { gearCard } from './cards.ts';
+import { knack, nimblestMember } from './whom.ts';
 
 const Msg = {
   GetChest: 40,
@@ -111,12 +112,7 @@ export function addItem(p: PlayerRecord, offset: number, amount: number): void {
  * alchemists a smaller one.
  */
 export function stealDisarmFails(world: World, p: PlayerRecord): boolean {
-  const careers = String.fromCharCode(...world.resources.misc.careerTable);
-  const classIndex = careers.indexOf(p.classLetter);
-  let factor = p.dexterity;
-  if (classIndex === 3) factor += 0x80;
-  if (classIndex === 5 || classIndex === 7 || classIndex === 10 || classIndex === 9) factor += 0x40;
-  return world.rng.range(0, 255) > factor;
+  return world.rng.range(0, 255) > knack(world, p);
 }
 
 /** Mirrors `BombTrap()`: every living member takes damage. */
@@ -157,7 +153,7 @@ export async function getChest(world: World, io: GameIO, member: number, how: 'c
   if (how === 'command') {
     world.chestTrapsArmed = true;
     io.printMessage(Msg.GetChest);
-    const n = await io.chooseMember();
+    const n = await io.chooseMember(undefined, nimblestMember(world));
     if (n === 0) return cancelled(world, io);
     if (n < 1 || n > 4) {
       io.printMessage(Msg.NoSuchPlayer);

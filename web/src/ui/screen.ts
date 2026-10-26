@@ -32,7 +32,8 @@ import { markerColour } from './display.ts';
 import { ScanlineOverlay } from './scanlines.ts';
 import { World, holdCombatMark, STARVATION_MODES, TIMER_MODES } from '../game/world.ts';
 import { PlayerRecord, levelUpDue, statusLetter } from '../game/player.ts';
-import { commandMenu, hasMagic } from '../game/context.ts';
+import { commandMenu } from '../game/context.ts';
+import { hasMagic } from '../game/whom.ts';
 import { memberShape } from '../game/combat.ts';
 import { TILE_SETS, helpPages, PAGE_ROWS, PAGE_WIDTH } from './help.ts';
 import { journalCard, journalSnapshot, journalTop, wordCard, type JournalLine } from '../game/journal.ts';
@@ -117,6 +118,8 @@ const TEXT_TOP = 13;
 const TEXT_BOTTOM = 24; // exclusive
 
 const ANIMATION_INTERVAL_MS = 1000 / 12;
+/** How long after the last press Battery saver lets the map rest (`Screen.batterySaver`). */
+export const BATTERY_SAVER_REST_MS = 60_000;
 
 /** The 4 x 6 grid of small tiles used for the dungeon map, in row 1 of the UI sheet. */
 const DUNGEON_MAP_PIECE_COLUMN = 7;
@@ -173,7 +176,33 @@ export class Screen implements GameIO {
   readonly cell: number;
 
   private view: Viewport | null = null;
-  private viewDirty = true;
+  /** The viewport wants painting; marking it so asks for a frame (`wake`). */
+  private dirty = true;
+  private get viewDirty(): boolean {
+    return this.dirty;
+  }
+  private set viewDirty(value: boolean) {
+    this.dirty = value;
+    if (value) this.wake();
+  }
+  /**
+   * A frame asked for and not yet drawn: one at a time. Frames are asked for only when there is something to show -
+   * the picture marked changed, the map's next animation step due (`nextStep`), the map page open - not at every
+   * refresh of the display.
+   */
+  private frameAsked = false;
+  /** The timer that asks for the frame of the map's next animation step. */
+  private stepTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The step timer has fired: its frame takes the step, whatever its time stamp says (a frame's is its start). */
+  private stepDue = false;
+  /** Whether the gamepads are being read (`readPads`). */
+  private readingPads = false;
+  /** Battery saver (Gameplay): the map rests, nothing animating, a minute after the last press, until the next. */
+  batterySaver = false;
+  /** The Pause a window losing focus sent (`onPause`) and nothing has read yet. */
+  private focusPauseUnread = false;
+  /** Whether the key `readKey` last read was that Pause: a wait for any key lets it pass (`waitKey`). */
+  private readFocusPause = false;
   /** While a picture or map covers the viewport the animation loop leaves it alone. */
   private viewCovered = false;
   /** True while the in-game border is shown (false on the title screens). */
@@ -290,10 +319,15 @@ export class Screen implements GameIO {
     // box stands in, as before, and focus alone starts the game again.
     keyboard.onPause = (reason) => {
       this.musicPlayer.pause();
-      if (reason === 'focus' && !this.pauseShown) keyboard.push(Key.Pause);
+      if (reason === 'focus' && !this.pauseShown) {
+        this.focusPauseUnread = true;
+        keyboard.push(Key.Pause);
+      }
+      this.wake(); // the PAUSED box, or the map stopped
     };
     keyboard.onResume = (pausedMs) => {
       this.musicPlayer.resume();
+      this.wake();
       // A frozen outline (a menu open) gets the whole time back when the menu closes.
       const c = this.world.combat;
       if (c && !c.markedFrozenAt) c.markedAt += pausedMs;
@@ -306,7 +340,73 @@ export class Screen implements GameIO {
       this.useController();
       this.onGamepadPress?.();
     });
-    requestAnimationFrame((t) => this.frame(t));
+    // A press starts the map again after Battery saver's rest; a window coming back starts it after a hold.
+    keyboard.onKey = () => this.wake();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', () => this.wake());
+      document.addEventListener('visibilitychange', () => this.wake());
+      window.addEventListener('gamepadconnected', () => this.readPads(true));
+    }
+    this.readPads();
+    this.wake();
+  }
+
+  /** Ask for a frame: the next the display draws, one at a time (`frameAsked`). */
+  private wake(): void {
+    if (this.frameAsked) return;
+    this.frameAsked = true;
+    if (this.stepTimer !== null) {
+      clearTimeout(this.stepTimer);
+      this.stepTimer = null;
+    }
+    requestAnimationFrame((t) => {
+      this.frameAsked = false;
+      this.frame(t);
+    });
+  }
+
+  /**
+   * The map's next animation step (water, flags, creatures; twelve a second): its frame asked for when it is due -
+   * unless there is no map to animate (a page or picture over it), the window is away (the game held for focus: a
+   * page hidden, the Android app in the background), or Battery saver has let the map rest.
+   */
+  private nextStep(time: number): void {
+    if (this.stepTimer !== null) clearTimeout(this.stepTimer); // one step waited for at a time
+    this.stepTimer = null;
+    if (this.viewCovered || this.keyboard.held('focus') || this.resting(time)) return;
+    this.stepTimer = setTimeout(
+      () => {
+        this.stepTimer = null;
+        this.stepDue = true;
+        this.wake();
+      },
+      Math.max(0, this.lastFrame + ANIMATION_INTERVAL_MS - time),
+    );
+  }
+
+  /** Battery saver: a minute after the last press the map rests, until the next. */
+  private resting(time: number): boolean {
+    return this.batterySaver && time - this.keyboard.lastInputAt >= BATTERY_SAVER_REST_MS;
+  }
+
+  /**
+   * Read the gamepads once a frame while one is connected, and stop when none is: one connecting starts it again
+   * (`gamepadconnected`, `force`), its first press still down the frame after. Each read is a task of its own, as
+   * the keyboard's events arrive: a press read inside a frame would run the game's turn after the frame's repaint
+   * but before the browser paints, so a view the turn blanks (a dark dungeon clears it every turn) would show black
+   * for a frame.
+   */
+  private readPads(force = false): void {
+    if (this.readingPads || !(force || this.gamepads.connected())) return;
+    this.readingPads = true;
+    const read = (): void => {
+      if (!this.gamepads.poll()) {
+        this.readingPads = false;
+        return;
+      }
+      requestAnimationFrame(() => setTimeout(read, 0));
+    };
+    requestAnimationFrame(() => setTimeout(read, 0));
   }
 
   // -------------------------------------------------------------------------
@@ -684,11 +784,20 @@ export class Screen implements GameIO {
     if (scripted !== undefined) return scripted;
     const key = timeoutMs === undefined ? await this.keyboard.nextKey() : await this.keyboard.nextKeyOrTimeout(timeoutMs);
     if (key === null) return null;
+    this.readFocusPause = key === Key.Pause && this.focusPauseUnread;
+    if (key === Key.Pause) this.focusPauseUnread = false;
     return this.inputMode === 'controller' ? controllerKeyFor(key) : key;
   }
 
+  /**
+   * Any key - but not the Pause a window losing focus sends (`onPause`), which is for the command prompt, where it
+   * opens the Pause menu: switching windows neither turns a page nor ends a message.
+   */
   async waitKey(): Promise<string> {
-    return (await this.readKey()) as string;
+    for (;;) {
+      const key = (await this.readKey()) as string;
+      if (!(key === Key.Pause && this.readFocusPause)) return key;
+    }
   }
 
   waitKeyOrTimeout(ms: number): Promise<string | null> {
@@ -761,6 +870,7 @@ export class Screen implements GameIO {
       for (;;) {
         const key = await this.readKey();
         if (key === null) continue;
+        if (key === Key.Pause && this.readFocusPause) continue; // a window losing focus backs out of no menu
         const action = applyMenuKey(menu, options, visible, key);
         if (action.kind === 'move') {
           if (feedback) this.sound(MENU_SOUNDS.move);
@@ -834,6 +944,7 @@ export class Screen implements GameIO {
       // While the fade is frozen the keyboard's own resume leaves the mark alone, so the turn gets its time back once.
       this.keyboard.resume('menu');
       this.pauseShown = false;
+      this.wake(); // the PAUSED box, should the window still be away
       release();
     }
   }
@@ -1045,6 +1156,7 @@ export class Screen implements GameIO {
         { key: 'V', label: `Starving: ${named(w.starvation)}` },
         { key: 'X', label: `Balanced XP: ${onOff(w.balancedXp)}` },
         { key: 'R', label: `Timer: ${named(w.timer)}` },
+        { key: 'S', label: `Battery saver: ${onOff(this.batterySaver)}` },
       ],
       (key) => {
         switch (key) {
@@ -1063,6 +1175,9 @@ export class Screen implements GameIO {
             break;
           case 'R':
             w.timer = TIMER_MODES[(TIMER_MODES.indexOf(w.timer) + 1) % TIMER_MODES.length];
+            break;
+          case 'S':
+            this.batterySaver = !this.batterySaver;
             break;
         }
       },
@@ -1187,6 +1302,7 @@ export class Screen implements GameIO {
         this.drawPage(pages[index].title, pages[index].lines, footer);
         const key = await this.readKey();
         if (key === Key.Escape || key === Key.B) break;
+        if (key === Key.Pause && this.readFocusPause) continue; // a window losing focus turns no page
         index++;
       }
     } finally {
@@ -1337,11 +1453,13 @@ export class Screen implements GameIO {
     show(page);
     this.overlay = (time) =>
       this.paintWorldMap(page, art, marks, selected, { back: back.length > 0, more: pages.length > 1, controller }, time);
+    this.wake();
     try {
       for (;;) {
         const key = await this.readKey();
         if (key === null) continue;
         const letter = key.length === 1 ? key.toLowerCase() : '';
+        if (key === Key.Pause && this.readFocusPause) continue; // a window losing focus closes no map
         if (key === Key.Escape || key === Key.Pause || key === '#') break;
         if (key === Key.B || key === Key.Backspace) {
           if (back.length === 0) {
@@ -1717,11 +1835,12 @@ export class Screen implements GameIO {
    * prompt itself sits on the map's bottom border. The answer is echoed
    * to the message area as the typed digit was.
    */
-  async chooseMember(only?: number[]): Promise<number> {
+  async chooseMember(only?: number[], preferred?: number): Promise<number> {
     const offered = [0, 1, 2, 3].filter((m) => this.world.party.memberSlot(m) >= 0 && (!only || only.includes(m)));
     if (!this.frameShown) return this.chooseMemberByKey();
     this.borderPrompt(this.promptMode === 'controller' ? 'Who? B: Cancel' : 'Who? Esc Cancel');
-    let at = 0;
+    // The arrows start on the member likeliest to succeed, where the command says who that is.
+    let at = preferred === undefined ? 0 : Math.max(0, offered.indexOf(preferred));
     let n = 0;
     try {
       for (;;) {
@@ -2238,11 +2357,6 @@ export class Screen implements GameIO {
   }
 
   private frame(time: number): void {
-    // Read the pads in a task of their own, as the keyboard's events arrive. A press pushed inside this frame would
-    // run the game's turn after the frame's repaint but before the browser paints, so a view the turn blanks (a
-    // dark dungeon clears it every turn) would show black for a frame. Ahead of the early returns, so a pad can
-    // still resume from the PAUSED box and close an overlay.
-    setTimeout(() => this.gamepads.poll(), 0);
     // Paused with no menu to say so (a key press could not reach the game): the screen shows PAUSED and stops
     // animating. Under the Pause menu the frame loop runs on, so the menu draws and answers the cursor.
     const boxed = this.keyboard.paused && !this.pauseShown;
@@ -2250,19 +2364,17 @@ export class Screen implements GameIO {
       if (boxed) this.showPaused();
       else this.hidePaused();
     }
-    if (this.underPaused) {
-      requestAnimationFrame((t) => this.frame(t));
-      return;
-    }
+    if (this.underPaused) return; // the PAUSED box stands; the hold's letting go wakes the frames
     if (this.overlay) {
-      this.overlay(time);
-      requestAnimationFrame((t) => this.frame(t));
+      this.overlay(time); // the map page: its marks blink, every frame while it is open
+      this.wake();
       return;
     }
-    if (time - this.lastFrame >= ANIMATION_INTERVAL_MS) {
+    if (this.stepDue || time - this.lastFrame >= ANIMATION_INTERVAL_MS) {
+      this.stepDue = false;
       this.lastFrame = time;
       this.gfx.tick();
-      if (!this.viewCovered) this.viewDirty = true;
+      if (!this.viewCovered) this.dirty = true; // painted below, in this frame: no other asked for
     }
     if (this.viewDirty && !this.viewCovered) {
       this.paintViewport();
@@ -2270,7 +2382,7 @@ export class Screen implements GameIO {
       this.viewDirty = false;
       if (this.menu) drawMenu(this.ctx, this.gfx, this.cell, this.menu);
     }
-    requestAnimationFrame((t) => this.frame(t));
+    this.nextStep(time);
   }
 
   /**
@@ -2420,8 +2532,8 @@ export class Screen implements GameIO {
       ctx.fillStyle = bright ? '#fff' : '#444';
       ctx.fillRect(left + world.x * mini, top + world.y * mini, mini, mini);
       bright = !bright;
-      const key = await this.keyboard.nextKeyOrTimeout(150);
-      if (key !== null) break;
+      const key = await this.readKey(150);
+      if (key !== null && !(key === Key.Pause && this.readFocusPause)) break; // a window losing focus ends no look
     }
     this.redrawMap();
   }

@@ -189,14 +189,39 @@ describe('doors, chests and stealing', () => {
     expect(io.output).toContain('GOLD+');
   });
 
-  it('a thief can steal the chest behind a counter', async () => {
+  it('starts "Who?" on the likeliest member for a chest or a theft', async () => {
+    const { world, io } = townWorld();
+    world.member(0).status = 'D'; // the thief dead: Roderic the ranger is the likeliest left
+    io.keys = [Key.Escape];
+    await steal(world, io);
+    expect(io.preferredMember).toBe(1);
+    world.putXYVal(MapValue.Chest, world.x, world.y);
+    io.keys = [Key.Escape];
+    await getChest(world, io, 0, 'command');
+    expect(io.preferredMember).toBe(1);
+  });
+
+  it('a thief can steal the chest behind the merchant, two squares past the counter', async () => {
     const { world, io } = townWorld();
     world.member(0).bytes[19] = 99; // a dexterous thief never fails
-    world.putXYVal(MapValue.LetterA, 21, 20);
-    world.putXYVal(MapValue.Chest, 22, 20);
+    world.putXYVal(MapValue.LetterA, 21, 20); // the counter; the merchant's row at 22; the chest at 23
+    world.putXYVal(MapValue.Chest, 23, 20);
     io.keys = ['1', Key.Right];
     await steal(world, io);
-    expect(world.getXYVal(22, 20)).toBe(MapValue.Floor);
+    expect(world.getXYVal(23, 20)).toBe(MapValue.Floor);
+    expect(io.output).toContain('GOLD+');
+  });
+
+  it("steals at the game's own shop counters, as LairWare's Steal did", async () => {
+    const { world, io } = townWorld(); // Britain: the shop counter south of the chests at (36, 16)
+    world.enterMap(MapId.FirstTown);
+    world.monsters.bytes.fill(0);
+    world.x = 36;
+    world.y = 19;
+    world.member(0).bytes[19] = 99;
+    io.keys = ['1', Key.Up];
+    await steal(world, io);
+    expect(world.getXYVal(36, 16)).toBe(MapValue.Floor);
     expect(io.output).toContain('GOLD+');
   });
 });
@@ -360,8 +385,13 @@ describe('menus', () => {
     await formParty(world, io);
     expect(world.autoMap.squareSeen(MapId.Sosaria, 42, 20)).toBe(true);
     expect(world.journal.clues).toEqual(['Moon#3']);
-    io.keys = ['N']; // asked, and declined
+    // Asked, and declined. No comes first, where the cursor starts: the notes cannot be had back.
+    const first: string[] = [];
+    const choose = io.chooseFromList.bind(io);
+    io.chooseFromList = (options) => (first.push(options[0].key), choose(options));
+    io.keys = ['N'];
     await clearNotes(world, io);
+    expect(first).toEqual(['N']);
     expect(world.gatesKnown).toEqual([3]);
     io.keys = ['Y', ' '];
     await clearNotes(world, io);

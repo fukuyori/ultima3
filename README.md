@@ -256,21 +256,21 @@ away.
 
 The menu holds the settings: auto combat, Visuals (the tile set and
 scanlines), Gameplay (the input mode, poison kills, starvation, balanced
-XP and the turn timer), Audio (Sound FX, Standard, Lairware or Off, and
-the FX level, music and the Music level), Tips (how the game works, for a
-new player, without the quest's answers), Help, Cheats, and Quit and save
-where the game allows it, on the surface and out of a fight. A new game's
-first turn points to Tips, once. A level is a dial, Off or 10% to 100%:
-each step is heard as it turns, the music playing under the paused game
-until the dial closes. The title screen shows the same settings under
-Settings, all but Cheats, which want a game going. The input mode is
-offered only when the menu was opened with a key press: keyboard mode
-wants a keyboard, and choosing it with a thumb or a gamepad used to leave
-a player pressing buttons the letter commands ignore. Every setting is
-remembered by the browser. A new game asks "Choose Thine Adventure!":
-Modern (recommended), Classic (hardcore, the Apple II's rules) or Story
-(relaxed), each a preset of the difficulty settings that can be changed
-afterwards.
+XP, the turn timer and Battery saver), Audio (Sound FX, Standard,
+Lairware or Off, and the FX level, music and the Music level), Tips (how
+the game works, for a new player, without the quest's answers), Help,
+Cheats, and Quit and save where the game allows it, on the surface and
+out of a fight. A new game's first turn points to Tips, once. A level is
+a dial, Off or 10% to 100%: each step is heard as it turns, the music
+playing under the paused game until the dial closes. The title screen
+shows the same settings under Settings, all but Cheats, which want a game
+going. The input mode is offered only when the menu was opened with a key
+press: keyboard mode wants a keyboard, and choosing it with a thumb or a
+gamepad used to leave a player pressing buttons the letter commands
+ignore. Every setting is remembered by the browser. A new game asks
+"Choose Thine Adventure!": Modern (recommended), Classic (hardcore, the
+Apple II's rules) or Story (relaxed), each a preset of the difficulty
+settings that can be changed afterwards.
 
 ## What changed
 
@@ -305,7 +305,11 @@ These apply whatever tile set and sound set are chosen.
 - Menus replace typed numbers on the title and party screens: the roster
   is a pick list, the party a list in marching order, attributes a screen
   where left and right spend the points, and a random name is offered.
-  "Who?" prompts move a pair of arrows through the stats boxes.
+  "Who?" prompts move a pair of arrows through the stats boxes, starting
+  on the member the command most likely wants: the nimblest for a chest
+  or a theft, the most hurt for a heal, the poisoned, dead or ashes for a
+  cure, resurrection or recall, the caster with the most mana for Cast,
+  and someone without the mark who can bear its burn for a rod.
 - A virtual controller on touch screens, a gamepad through the Gamepad
   API, and an on-screen keyboard for names.
 
@@ -386,9 +390,14 @@ These apply whatever tile set and sound set are chosen.
 - Starvation: Classic (the Apple II's, to the death), Mild (stops at half
   hit points, the default) or None.
 - Timer: Fast (the Apple II's turn timer), Slow, or Off, which makes the
-  game turn-based through and through.
+  game turn-based through and through. A fight whose turns have passed by
+  themselves for a minute, no key pressed, pauses until the player comes
+  back.
 - Balanced XP, on by default: a kill's experience is shared among the
   living members instead of going all to the killer.
+- Battery saver, off by default: a minute after the last press the map
+  stops animating, until the next press, for a phone or handheld left
+  with the game open. Whatever changes still shows.
 - Scanlines, off by default: the look of a CRT over the whole game, in
   any tile set, one line for each of the Apple II's 192 screen lines.
   They are drawn in the screen's own pixels, so they stay even at any
@@ -444,6 +453,13 @@ These apply whatever tile set and sound set are chosen.
   port's heading test did not wrap as the Apple II's 8-bit arithmetic did.
 - A new character could throw away their only dagger; now a dagger is
   thrown only when there is a spare.
+- A dungeon's trap went off when the party's leader had the knack to
+  evade it, and was evaded when they did not: the check ran the wrong way
+  round, where the chests' traps have it right. A nimble leader, a thief
+  above all, now evades them.
+- Steal looked for the chest just past a shop's counter, where the
+  merchant stands, so it failed at every counter but one; LairWare's
+  looks behind the merchant, where the chests are, and so does this port.
 - The last letter of Moon's "CAPESSII" sign was drawn as a door. A door
   and the letter "I" share one map value, and the Mac port decided between
   them by looking at the neighbouring tile, counting another "I" as not a
@@ -591,6 +607,31 @@ Every release, with the desktop and Android downloads, is on the
 [releases page](https://github.com/synthwave-pixel/ultima3/releases). The
 web version is updated with each release, so it runs the same game as the
 apps.
+
+### v1.0.65, October 24, 2026
+
+- The game draws only when something moves or changes, which saves power,
+  most of all on phones and handhelds. A new Battery saver, under
+  Gameplay and off by default, lets the map rest a minute after the last
+  press. The Android app holds the game while it is in the background.
+- "Who?" prompts start on the member the command most likely wants: the
+  nimblest for a chest or a theft, the most hurt for a heal, the
+  poisoned, dead or ashes for a cure, resurrection or recall, the caster
+  with the most mana for Cast, and for a rod someone without its mark
+  who can bear its burn. Any member can still be chosen.
+- A fight left alone for a minute, its turns passing by themselves,
+  pauses until the player comes back. Auto combat plays on.
+- Steal works at every shop counter. The port looked for the chest one
+  square too near, where the merchant stands, so a theft failed at all
+  but one counter; the controller menu offers Steal wherever it can work.
+- A dungeon trap is met by the party's nimblest living member, and a good
+  roll evades it. The original asked the leader, dead or alive, and had
+  the roll the wrong way round.
+- The controller menu offers Enter only where a town, castle or dungeon
+  stands, and X-it only where the horse or ship can be left.
+- Switching away from the window, or sending the Android app to the
+  background, no longer backs out of an open menu or closes the map.
+- Clear notes asks with No first, since it cannot be undone.
 
 ### v1.0.63, October 15, 2026
 

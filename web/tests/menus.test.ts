@@ -113,6 +113,41 @@ describe('gamepad reader', () => {
   });
 });
 
+describe('a gamepad stick', () => {
+  const pad = (axes: number[]) => ({ index: 0, id: 'pad', buttons: [], axes }) as unknown as Gamepad;
+
+  it('steers only once seen at rest: a trigger resting at -1, or a drifting stick, is not a direction held', () => {
+    let pads: (Gamepad | null)[] = [pad([0, -1])]; // axis 1 reads -1 from the start: a trigger, not a stick up
+    const pushed: string[] = [];
+    const reader = new GamepadReader(
+      { push: (k: string) => pushed.push(k), waiting: true },
+      () => {},
+      () => 0,
+      () => pads,
+    );
+    reader.poll();
+    expect(pushed).toEqual([]);
+    pads = [pad([0, 0])]; // at rest: from now on it steers
+    reader.poll();
+    pads = [pad([0, -1])];
+    reader.poll();
+    expect(pushed).toEqual([Key.Up]);
+  });
+
+  it('is read only while a pad is connected', () => {
+    let pads: (Gamepad | null)[] = [null, null];
+    const reader = new GamepadReader(
+      { push: () => {}, waiting: true },
+      () => {},
+      () => 0,
+      () => pads,
+    );
+    expect(reader.connected()).toBe(false);
+    pads = [null, pad([0, 0])];
+    expect(reader.connected()).toBe(true);
+  });
+});
+
 describe('keys in a menu window', () => {
   const options: MenuOption[] = [
     { key: 'J', label: 'Journey onward' },

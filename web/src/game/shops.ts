@@ -16,6 +16,7 @@ import { addGold } from './actions.ts';
 import { FOOD_MAX } from './party.ts';
 import { gearCard } from './cards.ts';
 import { hearClue } from './journal.ts';
+import { mostHurt, poisoned, fallen, ashes } from './whom.ts';
 
 const Msg = {
   WelcomePub: 185,
@@ -210,17 +211,18 @@ async function healer(world: World, io: GameIO, p: PlayerRecord): Promise<void> 
   );
   if (!choice || choice === '0') return io.print('0\n');
 
-  const services: Record<string, [number, number, number, (t: PlayerRecord) => void]> = {
-    '1': [Msg.Curing, Msg.CureWhom, 100, (t) => void (t.status === 'P' && (t.status = 'G'))],
-    '2': [Msg.Healing, Msg.HealWhom, 200, (t) => void (t.hitPoints = t.maxHitPoints)],
-    '3': [Msg.Resurrection, Msg.ResurrectWhom, 500, (t) => void (t.status === 'D' && (t.status = 'G'))],
-    '4': [Msg.Recalling, Msg.RecallWhom, 900, (t) => void (t.status === 'A' && (t.status = 'G'))],
+  // Each service's "whom?" starts on the member it is likeliest for (whom.ts).
+  const services: Record<string, [number, number, number, (t: PlayerRecord) => void, (w: World) => number | undefined]> = {
+    '1': [Msg.Curing, Msg.CureWhom, 100, (t) => void (t.status === 'P' && (t.status = 'G')), poisoned],
+    '2': [Msg.Healing, Msg.HealWhom, 200, (t) => void (t.hitPoints = t.maxHitPoints), mostHurt],
+    '3': [Msg.Resurrection, Msg.ResurrectWhom, 500, (t) => void (t.status === 'D' && (t.status = 'G')), fallen],
+    '4': [Msg.Recalling, Msg.RecallWhom, 900, (t) => void (t.status === 'A' && (t.status = 'G')), ashes],
   };
-  const [askMsg, whomMsg, cost, apply] = services[choice];
+  const [askMsg, whomMsg, cost, apply, likeliest] = services[choice];
   io.printMessage(askMsg);
   if (!(await clericalPay(world, io, p, cost))) return;
   io.printMessage(whomMsg);
-  const n = await io.chooseMember();
+  const n = await io.chooseMember(undefined, likeliest(world));
   io.print('\n');
   if (n < 1 || n > 4) return io.sound(Sound.Bump);
   await spellNoise(io, n - 1);
