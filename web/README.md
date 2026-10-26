@@ -36,6 +36,12 @@ The language setting is saved with the other local preferences. Locale catalogs
 live in `public/locales/`: `index.json` lists the locale codes, and each code
 has a JSON file with a display `name` and a `messages` object. Message keys are
 the English text shown by the game; untranslated keys fall back to English.
+Plain ASCII `messages` keys are also replaced where they appear inside other
+text. A catalog's `phrases` object holds text matched only whole: the
+dungeons' writings and the journal, whose lines, cards and hints are
+translated before they are wrapped. A phrase with `{0}`, `{1}`... is a
+template whose parts are translated in turn, and text no entry matches is
+tried sentence by sentence.
 Add a locale by adding its code to the index and its catalog file. The canvas
 uses its bitmap font for the original ASCII text and the platform font for
 Japanese characters.

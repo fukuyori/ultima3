@@ -81,7 +81,24 @@ import {
   wrapText,
 } from './menus.ts';
 import { DungeonCell } from '../game/world.ts';
-import { availableLanguages, getLanguage, setLanguage, translate } from '../i18n.ts';
+import { availableLanguages, getLanguage, localize, setLanguage, translate } from '../i18n.ts';
+
+/** A card in the language in use: its text translated whole, then wrapped again where it changed. */
+function localCard(card: Card): Card {
+  const about = card.lines.map((line) => line.text).join(' ');
+  const text = localize(about);
+  const lines = text === about ? card.lines : wrapText(text, CARD_WIDTH, CARD_ROWS).map((line) => ({ text: line }));
+  return { ...card, title: localize(card.title), lines };
+}
+
+/** A journal row in the language in use: its name and its status at the right (journal.ts `row`) each translated. */
+function localRow(line: JournalLine): string {
+  const right = line.label !== line.name && line.label.length === PAGE_WIDTH ? (/\s(\S+)$/.exec(line.label)?.[1] ?? '') : '';
+  const name = localize(line.name);
+  if (!right) return line.label === line.name ? name.slice(0, PAGE_WIDTH) : localize(line.label);
+  const status = localize(right);
+  return name.slice(0, PAGE_WIDTH - status.length - 1).padEnd(PAGE_WIDTH - status.length) + status;
+}
 
 export const COLUMNS = 40;
 export const ROWS = 24;
@@ -1331,12 +1348,12 @@ export class Screen implements GameIO {
         let rows: string[];
         let cursor = -1;
         if (level.lines) {
-          rows = level.lines.map((l) => l.label);
+          rows = level.lines.map(localRow);
           if (level.selected < level.top) level.top = level.selected;
           if (level.selected >= level.top + PAGE_ROWS) level.top = level.selected - PAGE_ROWS + 1;
           cursor = level.selected - level.top;
         } else {
-          rows = (level.text ?? []).flatMap((p, i) => [...(i ? [''] : []), ...wrapText(p, PAGE_WIDTH, 12)]);
+          rows = (level.text ?? []).flatMap((p, i) => [...(i ? [''] : []), ...wrapText(localize(p), PAGE_WIDTH, 12)]);
           level.top = Math.max(0, Math.min(rows.length - PAGE_ROWS, level.top));
         }
         const opens = !!line?.open && !!level.lines;
@@ -1344,8 +1361,8 @@ export class Screen implements GameIO {
         // Only the hint's key: opening and backing out are as in every list.
         const footer = [controller ? 'Y hint' : 'H hint', ''];
         const note = !level.lines && rows.length > PAGE_ROWS ? 'Up/Down: scroll' : '';
-        this.drawPage(level.title, rows.slice(level.top), footer, note, cursor);
-        this.showCard(line ? journalCard(line) : null);
+        this.drawPage(localize(level.title), rows.slice(level.top), footer, note, cursor);
+        this.showCard(line ? localCard(journalCard(line)) : null);
         const key = await this.readKey();
         if (key === null) continue;
         if (key === Key.Escape || key === 'j' || key === 'J') break;
@@ -1359,7 +1376,7 @@ export class Screen implements GameIO {
         } else if (key === Key.A || key === Key.Enter || key === Key.Right) {
           const open = opens ? line?.open : undefined;
           if (open) stack.push({ title: open.title, lines: open.lines, text: open.text, from: line, selected: 0, top: 0 });
-        } else if (line && (key === Key.Y || key === 'h' || key === 'H')) this.printWrapped(line.hint);
+        } else if (line && (key === Key.Y || key === 'h' || key === 'H')) this.printWrapped(localize(line.hint));
       }
     } finally {
       this.showCard(null);
@@ -2026,8 +2043,11 @@ export class Screen implements GameIO {
       // The words learnt (journal.ts), each with its card; none yet, a line that says so (B backs out).
       const none = cardWrap('None learnt yet. Townsfolk say them: walk into everyone.').map((text) => ({ text }));
       const options = words.length
-        ? words.map((w) => ({ key: w[0], label: w, card: wordCard(w) }))
-        : [{ key: '-', label: 'None known', disabled: true, card: { title: 'Words', lines: none } }];
+        ? words.map((w) => {
+            const card = wordCard(w);
+            return { key: w[0], label: w, card: card && localCard(card) };
+          })
+        : [{ key: '-', label: 'None known', disabled: true, card: localCard({ title: 'Words', lines: none }) }];
       const picked = await this.runMenu('Word', options);
       return picked < 0 ? '' : (words[picked] ?? '');
     }
